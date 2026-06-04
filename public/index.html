@@ -173,6 +173,53 @@ let simHour = new Date().getHours();
 let simMin  = new Date().getMinutes();
 const PRICE_MAP = {PRICE_LEVEL_FREE:0,PRICE_LEVEL_INEXPENSIVE:1,PRICE_LEVEL_MODERATE:2,PRICE_LEVEL_EXPENSIVE:3,PRICE_LEVEL_VERY_EXPENSIVE:4};
 
+// Funkcja sprawdzająca otwarcie dla wybranej godziny
+function checkOpenAtTime(place, hour, minute) {
+  const dayOfWeek = new Date().getDay(); // 0=niedziela, 1=poniedziałek, ..., 6=sobota
+  const dayIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Konwersja: 0->6, 1->0, ..., 6->5 (dla API)
+  const minutes = hour * 60 + minute;
+  
+  // Jeśli dostępne currentOpeningHours.periods
+  const cur = place.currentOpeningHours;
+  if (cur && cur.periods && Array.isArray(cur.periods)) {
+    for (const period of cur.periods) {
+      if (period.open && period.close) {
+        const open = period.open.day === dayIndex;
+        const close = period.close.day === dayIndex;
+        if (open && close) {
+          const openMin = (period.open.hour || 0) * 60 + (period.open.minute || 0);
+          const closeMin = (period.close.hour || 0) * 60 + (period.close.minute || 0);
+          if (minutes >= openMin && minutes < closeMin) return true;
+        } else if (open && !close && minutes >= ((period.open.hour || 0) * 60 + (period.open.minute || 0))) {
+          return true; // Otwarte do następnego dnia
+        }
+      }
+    }
+    return false;
+  }
+  
+  // Jeśli dostępne regularOpeningHours.periods
+  const reg = place.regularOpeningHours;
+  if (reg && reg.periods && Array.isArray(reg.periods)) {
+    for (const period of reg.periods) {
+      if (period.open && period.close && period.open.day === dayIndex) {
+        const openMin = (period.open.hour || 0) * 60 + (period.open.minute || 0);
+        const closeMin = (period.close.hour || 0) * 60 + (period.close.minute || 0);
+        if (minutes >= openMin && minutes < closeMin) return true;
+      }
+    }
+    return false;
+  }
+  
+  // Jeśli dostępne currentOpeningHours.openNow
+  if (cur && cur.openNow !== undefined) {
+    return cur.openNow === true ? true : false;
+  }
+  
+  // Brak danych
+  return null;
+}
+
 function resetToNow() {
   const n = new Date();
   simHour = n.getHours(); simMin = n.getMinutes();
@@ -271,9 +318,6 @@ async function startSearch() {
       return;
     }
     allRestaurants = places.map(p => {
-      const cur = p.currentOpeningHours;
-      let openNow = null;
-      if (cur && cur.openNow !== undefined) openNow = cur.openNow === true;
       return {
         name: p.displayName?.text || '?',
         address: p.formattedAddress || '',
@@ -281,13 +325,15 @@ async function startSearch() {
         ratingCount: p.userRatingCount || 0,
         priceLevel: PRICE_MAP[p.priceLevel] != null ? PRICE_MAP[p.priceLevel] : null,
         types: p.types || [],
-        openNow,
+        currentOpeningHours: p.currentOpeningHours || {},
+        regularOpeningHours: p.regularOpeningHours || {},
         mapsUrl: p.googleMapsUri || 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.displayName?.text||'')
       };
     });
-    const openCount   = allRestaurants.filter(r => r.openNow === true).length;
-    const closedCount = allRestaurants.filter(r => r.openNow === false).length;
-    setStatus('done', allRestaurants.length + ' lokali — ' + openCount + ' otwartych, ' + closedCount + ' zamkniętych');
+    const openCount   = allRestaurants.filter(r => checkOpenAtTime(r, simHour, simMin) === true).length;
+    const closedCount = allRestaurants.filter(r => checkOpenAtTime(r, simHour, simMin) === false).length;
+    const timeStr = String(simHour).padStart(2,'0') + ':' + String(simMin).padStart(2,'0');
+    setStatus('done', allRestaurants.length + ' lokali — ' + openCount + ' otwartych, ' + closedCount + ' zamkniętych (status dla godziny ' + timeStr + ')');
     renderList();
   } catch(e) {
     setStatus('error', 'Błąd: ' + e.message);
@@ -300,19 +346,31 @@ async function startSearch() {
 
 function renderList() {
   const statusOrder = v => v === true ? 0 : v === false ? 2 : 1;
+  const calcScore = r => r.ratingCount > 0 ? r.rating * Math.log10(r.ratingCount + 10) : r.rating * Math.log10(10);
+  
   const sorted = [...allRestaurants].sort((a, b) => {
-    const so = statusOrder(a.openNow) - statusOrder(b.openNow);
+    const aOpen = checkOpenAtTime(a, simHour, simMin);
+    const bOpen = checkOpenAtTime(b, simHour, simMin);
+    const so = statusOrder(aOpen) - statusOrder(bOpen);
     if (so !== 0) return so;
-    if (currentSort === 'rating') return b.rating - a.rating;
+    
+    if (currentSort === 'rating') {
+      // Sortuj po score = rating * log10(userRatingCount + 10)
+      const scoreB = calcScore(b);
+      const scoreA = calcScore(a);
+      return scoreB - scoreA;
+    }
     if (currentSort === 'price')  return (a.priceLevel ?? 99) - (b.priceLevel ?? 99);
+    
     const vA = a.priceLevel ? a.rating / a.priceLevel : a.rating * 0.5;
     const vB = b.priceLevel ? b.rating / b.priceLevel : b.rating * 0.5;
     return vB - vA;
   });
 
   document.getElementById('restaurantsList').innerHTML = sorted.map(r => {
-    const sc = r.openNow === true ? 'open' : r.openNow === false ? 'closed' : 'unknown';
-    const lb = r.openNow === true ? 'Otwarte' : r.openNow === false ? 'Zamknięte' : 'Brak danych';
+    const openStatus = checkOpenAtTime(r, simHour, simMin);
+    const sc = openStatus === true ? 'open' : openStatus === false ? 'closed' : 'unknown';
+    const lb = openStatus === true ? 'Otwarte' : openStatus === false ? 'Zamknięte' : 'Brak danych';
     return `<div class="resto-card is-${sc} mode-${currentMode}">
       <div class="card-body">
         <div class="card-top">

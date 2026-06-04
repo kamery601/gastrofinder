@@ -22,7 +22,7 @@ app.get('/api/nearby', async (req, res) => {
     const mode = req.query.mode || 'food'; // food | clubs | shops24
 
     let includedTypes, excludedTypes = [];
-    const FIELD_MASK = 'places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.priceLevel,places.types,places.currentOpeningHours,places.businessStatus,places.googleMapsUri';
+    const FIELD_MASK = 'places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.priceLevel,places.types,places.currentOpeningHours,places.regularOpeningHours,places.businessStatus,places.googleMapsUri';
 
     if (mode === 'clubs') {
       includedTypes = ['night_club', 'live_music_venue'];
@@ -32,8 +32,8 @@ app.get('/api/nearby', async (req, res) => {
       excludedTypes = ['lodging','hotel','motel','resort_hotel','extended_stay_hotel','bed_and_breakfast','hostel','guest_house'];
     } else {
       // food mode
-      includedTypes = ['restaurant', 'cafe', 'bar'];
-      excludedTypes = ['lodging','hotel','motel','resort_hotel','extended_stay_hotel','bed_and_breakfast','hostel','guest_house'];
+      includedTypes = ['restaurant', 'cafe', 'bar', 'bakery', 'meal_takeaway', 'meal_delivery', 'coffee_shop', 'fast_food_restaurant', 'pizza_restaurant'];
+      excludedTypes = ['lodging','hotel','motel','resort_hotel','extended_stay_hotel','bed_and_breakfast','hostel','guest_house','shopping_mall','movie_theater','tourist_attraction','museum','park','gym','store','school','university','spa','casino'];
     }
 
     const seen = new Set();
@@ -74,15 +74,16 @@ app.get('/api/nearby', async (req, res) => {
       const name = (p.displayName?.text || '').toLowerCase();
 
       if (mode === 'food') {
-        if (types[0] && LODGING.has(types[0])) return false;
-        if (types.includes('lodging') && !p.currentOpeningHours) return false;
-        const NIGHTCLUB = new Set(['night_club','amusement_center','casino','live_music_venue']);
-        const FOOD = new Set(['restaurant','cafe','bar','meal_takeaway','meal_delivery','bakery','fast_food_restaurant','pizza_restaurant']);
-        if (types[0] && NIGHTCLUB.has(types[0])) return false;
-        if (types.includes('night_club') && !types.some(t => FOOD.has(t))) return false;
+        const ALLOWED_FOOD = new Set(['restaurant','cafe','bar','bakery','meal_takeaway','meal_delivery','coffee_shop','fast_food_restaurant','pizza_restaurant']);
+        const REJECTED_TYPES = new Set(['shopping_mall','movie_theater','tourist_attraction','museum','lodging','park','gym','store','school','university','spa','casino']);
+        // Musi zawierać co najmniej jeden typ z ALLOWED_FOOD
+        if (!types.some(t => ALLOWED_FOOD.has(t))) return false;
+        // Nie może zawierać ŻADNEGO typu z REJECTED_TYPES
+        if (types.some(t => REJECTED_TYPES.has(t))) return false;
+        // Nie może zawierać hotelu lub zakwaterowania
+        if (types.some(t => LODGING.has(t))) return false;
+        // Odrzuć znane sieci convenience stores
         if (EXCLUDED_NAMES.some(n => name.includes(n))) return false;
-        const NON_FOOD = new Set(['gas_station','car_wash','grocery_store','supermarket','convenience_store','book_store','clothing_store','liquor_store','courier_service','shipping_service']);
-        if (types[0] && NON_FOOD.has(types[0])) return false;
       }
 
       if (mode === 'clubs') {
