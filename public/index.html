@@ -1,12 +1,347 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pl">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>trener50pro | Forma po 40 roku życia</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GastroFinder</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --a50:#FAEEDA;--a100:#FAC775;--a200:#EF9F27;--a400:#BA7517;--a600:#854F0B;--a800:#633806;--a900:#412402;
+  --t400:#1D9E75;--t600:#0F6E56;
+  --g50:#F7F5EF;--g100:#EDEAE0;--g200:#D3D1C7;--g400:#888780;--g600:#5F5E5A;--g800:#2C2C2A;
+  --r50:#FCEBEB;--r400:#E24B4A;--r800:#791F1F;
+  --gr50:#EAF3DE;--gr400:#639922;--gr800:#27500A;
+  --p50:#F3EEFF;--p400:#7C3AED;--p800:#4C1D95;
+  --b50:#EFF6FF;--b400:#2563EB;--b800:#1E3A8A;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);min-height:100vh;}
+
+.header{background:var(--a900);padding:2.5rem 1.5rem 5rem;position:relative;overflow:hidden;}
+.header::before{content:'';position:absolute;top:-60px;right:-60px;width:280px;height:280px;background:var(--a800);border-radius:50%;opacity:.4;}
+.header::after{content:'';position:absolute;bottom:-80px;left:10%;width:200px;height:200px;background:var(--a600);border-radius:50%;opacity:.2;}
+.header-inner{max-width:960px;margin:0 auto;position:relative;z-index:2;}
+.logo{font-family:'Fraunces',serif;font-size:2.4rem;font-weight:700;color:var(--a100);letter-spacing:-.5px;line-height:1;}
+.logo span{color:var(--a200);font-style:italic;}
+.tagline{color:var(--a200);font-size:.9rem;margin-top:.4rem;}
+
+.search-card{max-width:960px;margin:-3rem auto 0;padding:0 1.5rem;position:relative;z-index:10;}
+.search-box{background:white;border-radius:20px;padding:1.75rem;box-shadow:0 4px 32px rgba(65,36,2,.13);border:1px solid var(--a100);}
+.search-row{display:flex;gap:.75rem;align-items:center;}
+.city-input{flex:1;font-family:'DM Sans',sans-serif;font-size:1.05rem;padding:.85rem 1.1rem;border:1.5px solid var(--g200);border-radius:12px;color:var(--g800);outline:none;background:var(--g50);transition:border-color .2s;}
+.city-input:focus{border-color:var(--a200);background:white;}
+.city-input::placeholder{color:var(--g400);}
+.search-btn{font-family:'DM Sans',sans-serif;font-size:.95rem;font-weight:600;padding:.85rem 1.8rem;background:var(--a400);color:white;border:none;border-radius:12px;cursor:pointer;transition:background .2s;white-space:nowrap;}
+.search-btn:hover{background:var(--a600);}
+.search-btn:disabled{background:var(--g200);color:var(--g400);cursor:not-allowed;}
+
+.time-bar{display:flex;align-items:center;gap:.75rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--g100);flex-wrap:wrap;}
+.time-label{font-size:.78rem;font-weight:600;color:var(--g600);letter-spacing:.5px;text-transform:uppercase;}
+.time-input{font-family:'DM Sans',sans-serif;font-size:.88rem;padding:.4rem .75rem;border:1.5px solid var(--g200);border-radius:8px;background:var(--g50);color:var(--g800);outline:none;}
+.time-reset{font-family:'DM Sans',sans-serif;font-size:.78rem;font-weight:600;padding:.4rem .75rem;background:var(--a50);color:var(--a600);border:1px solid var(--a100);border-radius:8px;cursor:pointer;}
+
+/* MODE TABS */
+.mode-tabs{display:flex;gap:.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--g100);flex-wrap:wrap;}
+.mode-tab{font-family:'DM Sans',sans-serif;font-size:.85rem;font-weight:600;padding:.5rem 1.1rem;border-radius:20px;cursor:pointer;border:1.5px solid transparent;transition:all .15s;display:flex;align-items:center;gap:.4rem;}
+.mode-tab.food.active{background:var(--a900);color:var(--a100);border-color:var(--a900);}
+.mode-tab.food.inactive{background:white;color:var(--g600);border-color:var(--g200);}
+.mode-tab.food.inactive:hover{border-color:var(--a400);color:var(--a600);}
+.mode-tab.clubs.active{background:var(--p800);color:#e9d5ff;border-color:var(--p800);}
+.mode-tab.clubs.inactive{background:white;color:var(--g600);border-color:var(--g200);}
+.mode-tab.clubs.inactive:hover{border-color:var(--p400);color:var(--p400);}
+.mode-tab.shops24.active{background:var(--b800);color:#bfdbfe;border-color:var(--b800);}
+.mode-tab.shops24.inactive{background:white;color:var(--g600);border-color:var(--g200);}
+.mode-tab.shops24.inactive:hover{border-color:var(--b400);color:var(--b400);}
+
+.content{max-width:960px;margin:2rem auto;padding:0 1.5rem;}
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:.75rem;}
+.sort-bar{display:flex;gap:.5rem;flex-wrap:wrap;}
+.sort-btn{font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:600;padding:.45rem 1rem;border-radius:20px;cursor:pointer;border:1.5px solid transparent;transition:all .15s;}
+.sort-btn.active{background:var(--a900);color:var(--a100);border-color:var(--a900);}
+.sort-btn.inactive{background:white;color:var(--g600);border-color:var(--g200);}
+.sort-btn.inactive:hover{border-color:var(--a200);color:var(--a600);}
+
+.legend{display:flex;gap:1rem;font-size:.75rem;color:var(--g600);flex-wrap:wrap;}
+.legend-item{display:flex;align-items:center;gap:.35rem;}
+.legend-dot{width:8px;height:8px;border-radius:50%;}
+.legend-dot.open{background:var(--gr400);}
+.legend-dot.closed{background:var(--r400);}
+.legend-dot.unknown{background:var(--g400);}
+
+.status-bar{display:flex;align-items:center;gap:.6rem;margin-bottom:1rem;font-size:.82rem;color:var(--g600);}
+.status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.status-dot.searching{background:var(--a200);animation:pulse 1.5s infinite;}
+.status-dot.done{background:var(--t400);}
+.status-dot.error{background:var(--r400);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+.restaurants-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;}
+.resto-card{background:white;border-radius:16px;border:1px solid var(--g100);overflow:hidden;transition:transform .15s,box-shadow .15s;display:flex;flex-direction:column;}
+.resto-card:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(65,36,2,.1);}
+.resto-card.is-open{border-left:3px solid var(--gr400);}
+.resto-card.is-closed{border-left:3px solid var(--r400);opacity:.8;}
+.resto-card.is-unknown{border-left:3px solid var(--g200);}
+
+/* Club card accent */
+.resto-card.mode-clubs.is-open{border-left-color:var(--p400);}
+.resto-card.mode-clubs.is-closed{border-left-color:#c4b5fd;}
+/* Shop card accent */
+.resto-card.mode-shops24.is-open{border-left-color:var(--b400);}
+.resto-card.mode-shops24.is-closed{border-left-color:#93c5fd;}
+
+.card-body{padding:1.1rem 1.25rem 1rem;flex:1;}
+.card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;margin-bottom:.3rem;}
+.card-name{font-family:'Fraunces',serif;font-size:1rem;font-weight:600;color:var(--g800);line-height:1.3;}
+.open-badge{flex-shrink:0;font-size:.65rem;font-weight:700;padding:.2rem .55rem;border-radius:20px;letter-spacing:.5px;text-transform:uppercase;white-space:nowrap;}
+.open-badge.open{background:var(--gr50);color:var(--gr800);}
+.open-badge.closed{background:var(--r50);color:var(--r800);}
+.open-badge.unknown{background:var(--g100);color:var(--g600);}
+
+.card-type{font-size:.73rem;color:var(--g400);font-weight:500;margin-bottom:.75rem;}
+.card-address{display:flex;align-items:flex-start;gap:.4rem;font-size:.8rem;color:var(--g600);text-decoration:none;margin-bottom:.85rem;line-height:1.4;}
+.card-address:hover{color:var(--a400);}
+.maps-btn{display:inline-flex;align-items:center;gap:.35rem;font-size:.78rem;font-weight:600;color:var(--t600);text-decoration:none;}
+.maps-btn:hover{color:var(--t400);}
+.card-footer{display:flex;align-items:center;justify-content:space-between;padding:.65rem 1.25rem;background:var(--g50);border-top:1px solid var(--g100);}
+.rating-badge{display:flex;align-items:center;gap:.3rem;font-size:.85rem;font-weight:600;color:var(--a600);}
+.rating-count{font-size:.72rem;color:var(--g400);font-weight:400;}
+.price-badge{font-size:.82rem;font-weight:700;color:var(--g600);}
+
+.empty-state{text-align:center;padding:3rem 1rem;color:var(--g400);grid-column:1/-1;}
+.empty-state h3{font-family:'Fraunces',serif;font-size:1.1rem;color:var(--g600);margin-bottom:.4rem;}
+.skeleton{background:linear-gradient(90deg,var(--g100) 25%,var(--g50) 50%,var(--g100) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:16px;height:190px;}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+@media(max-width:600px){.logo{font-size:1.8rem;}.search-row{flex-direction:column;}.search-btn{width:100%;}}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-inner">
+    <div class="logo">Gastro<span>Finder</span></div>
+    <p class="tagline">Restauracje · Kawiarnie · Bary · Sklepy — sprawdź czy otwarte</p>
+  </div>
+</header>
+
+<div class="search-card">
+  <div class="search-box">
+    <div class="search-row">
+      <input type="text" id="cityInput" class="city-input"
+        placeholder="Wpisz miasto, np. Kraków, Zakopane, Gdańsk..."
+        autocomplete="off" onkeydown="if(event.key==='Enter')startSearch()"/>
+      <button class="search-btn" id="searchBtn" onclick="startSearch()">Szukaj</button>
+    </div>
+    <div class="time-bar">
+      <span class="time-label">Czas:</span>
+      <input type="time" id="simulatedTime" class="time-input" onchange="onTimeChange()"/>
+      <button class="time-reset" onclick="resetToNow()">Teraz</button>
+    </div>
+    <div class="mode-tabs">
+      <button class="mode-tab food active" id="tab-food" onclick="setMode('food')">🍽️ Restauracje i bary</button>
+      <button class="mode-tab clubs inactive" id="tab-clubs" onclick="setMode('clubs')">🎵 Kluby i dyskoteki</button>
+      <button class="mode-tab shops24 inactive" id="tab-shops24" onclick="setMode('shops24')">🏪 Sklepy całodobowe</button>
+    </div>
+  </div>
+</div>
+
+<div class="content" id="mainContent" style="display:none">
+  <div class="toolbar">
+    <div class="sort-bar">
+      <button class="sort-btn active" id="sort-rating" onclick="setSort('rating')">⭐ Ocena</button>
+      <button class="sort-btn inactive" id="sort-price" onclick="setSort('price')">💰 Cena</button>
+      <button class="sort-btn inactive" id="sort-value" onclick="setSort('value')">🏆 Jakość/Cena</button>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot open"></div>Otwarte</div>
+      <div class="legend-item"><div class="legend-dot closed"></div>Zamknięte</div>
+      <div class="legend-item"><div class="legend-dot unknown"></div>Brak danych</div>
+    </div>
+  </div>
+  <div class="status-bar">
+    <div class="status-dot done" id="statusDot"></div>
+    <span id="statusText">Gotowy</span>
+  </div>
+  <div id="restaurantsList" class="restaurants-grid"></div>
+</div>
+
+<script>
+let allRestaurants = [];
+let currentSort = 'rating';
+let currentMode = 'food';
+let simHour = new Date().getHours();
+let simMin  = new Date().getMinutes();
+const PRICE_MAP = {PRICE_LEVEL_FREE:0,PRICE_LEVEL_INEXPENSIVE:1,PRICE_LEVEL_MODERATE:2,PRICE_LEVEL_EXPENSIVE:3,PRICE_LEVEL_VERY_EXPENSIVE:4};
+
+function resetToNow() {
+  const n = new Date();
+  simHour = n.getHours(); simMin = n.getMinutes();
+  document.getElementById('simulatedTime').value =
+    String(simHour).padStart(2,'0') + ':' + String(simMin).padStart(2,'0');
+  if (allRestaurants.length) renderList();
+}
+function onTimeChange() {
+  const v = document.getElementById('simulatedTime').value;
+  if (!v) return;
+  [simHour, simMin] = v.split(':').map(Number);
+  if (allRestaurants.length) renderList();
+}
+
+function setMode(mode) {
+  currentMode = mode;
+  ['food','clubs','shops24'].forEach(m => {
+    const btn = document.getElementById('tab-' + m);
+    btn.className = 'mode-tab ' + m + (m === mode ? ' active' : ' inactive');
+  });
+  // Auto-search if city already entered
+  const city = document.getElementById('cityInput').value.trim();
+  if (city) startSearch();
+}
+
+function setSort(t) {
+  currentSort = t;
+  ['rating','price','value'].forEach(s => {
+    document.getElementById('sort-' + s).className = 'sort-btn ' + (s===t ? 'active' : 'inactive');
+  });
+  renderList();
+}
+function setStatus(state, text) {
+  document.getElementById('statusDot').className = 'status-dot ' + state;
+  document.getElementById('statusText').textContent = text;
+}
+function setLoading(on) {
+  const btn = document.getElementById('searchBtn');
+  btn.disabled = on; btn.textContent = on ? 'Szukam...' : 'Szukaj';
+  if (on) document.getElementById('restaurantsList').innerHTML =
+    Array(6).fill('<div class="skeleton"></div>').join('');
+}
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function priceStr(lvl) {
+  if (lvl === null || lvl === undefined) return '<span style="color:var(--g400)">–</span>';
+  return ['','$','$$','$$$','$$$$'][lvl] || '–';
+}
+function typeLabel(types, mode) {
+  if (mode === 'clubs') {
+    const m = {night_club:'Klub nocny',bar:'Bar',live_music_venue:'Live music',pub:'Pub',disco:'Dyskoteka'};
+    for (const t of (types||[])) if (m[t]) return m[t];
+    return 'Klub / bar';
+  }
+  if (mode === 'shops24') {
+    const m = {convenience_store:'Sklep całodobowy',supermarket:'Supermarket',grocery_store:'Sklep spożywczy',gas_station:'Stacja paliw',pharmacy:'Apteka'};
+    for (const t of (types||[])) if (m[t]) return m[t];
+    return 'Sklep';
+  }
+  const m = {restaurant:'Restauracja',cafe:'Kawiarnia',bar:'Bar',bakery:'Piekarnia',meal_takeaway:'Na wynos',meal_delivery:'Dostawa',coffee_shop:'Kawiarnia',fast_food_restaurant:'Fast food',pizza_restaurant:'Pizza',kebab_shop:'Kebab'};
+  for (const t of (types||[])) if (m[t]) return m[t];
+  return 'Lokal';
+}
+
+async function startSearch() {
+  const city = document.getElementById('cityInput').value.trim();
+  if (!city) { document.getElementById('cityInput').focus(); return; }
+  document.getElementById('mainContent').style.display = 'block';
+  const modeLabels = {food:'restauracji i barów', clubs:'klubów i dyskotek', shops24:'sklepów'};
+  setStatus('searching', 'Szukam ' + modeLabels[currentMode] + ' w: ' + city + '...');
+  setLoading(true);
+  try {
+    const geoRes = await fetch('/api/geocode?address=' + encodeURIComponent(city + ', Polska'));
+    const geo = await geoRes.json();
+    if (!geo.results?.length) {
+      setStatus('error', 'Nie znaleziono miasta.');
+      document.getElementById('restaurantsList').innerHTML =
+        '<div class="empty-state"><h3>Nie znaleziono</h3><p>Sprawdź pisownię nazwy miasta.</p></div>';
+      return;
+    }
+    const loc = geo.results[0].geometry.location;
+    const nearRes = await fetch('/api/nearby?location=' + loc.lat + ',' + loc.lng + '&mode=' + currentMode);
+    const near = await nearRes.json();
+    if (near.error) {
+      setStatus('error', 'Błąd API: ' + (near.error.message || ''));
+      document.getElementById('restaurantsList').innerHTML =
+        '<div class="empty-state"><h3>Błąd API</h3><p>' + esc(near.error.message||'') + '</p></div>';
+      return;
+    }
+    const places = near.places || [];
+    if (!places.length) {
+      setStatus('done', 'Brak wyników w okolicy.');
+      document.getElementById('restaurantsList').innerHTML =
+        '<div class="empty-state"><h3>Brak wyników</h3><p>Nie znaleziono lokali w promieniu 3 km.</p></div>';
+      return;
+    }
+    allRestaurants = places.map(p => {
+      const cur = p.currentOpeningHours;
+      let openNow = null;
+      if (cur && cur.openNow !== undefined) openNow = cur.openNow === true;
+      return {
+        name: p.displayName?.text || '?',
+        address: p.formattedAddress || '',
+        rating: p.rating || 0,
+        ratingCount: p.userRatingCount || 0,
+        priceLevel: PRICE_MAP[p.priceLevel] != null ? PRICE_MAP[p.priceLevel] : null,
+        types: p.types || [],
+        openNow,
+        mapsUrl: p.googleMapsUri || 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.displayName?.text||'')
+      };
+    });
+    const openCount   = allRestaurants.filter(r => r.openNow === true).length;
+    const closedCount = allRestaurants.filter(r => r.openNow === false).length;
+    setStatus('done', allRestaurants.length + ' lokali — ' + openCount + ' otwartych, ' + closedCount + ' zamkniętych');
+    renderList();
+  } catch(e) {
+    setStatus('error', 'Błąd: ' + e.message);
+    document.getElementById('restaurantsList').innerHTML =
+      '<div class="empty-state"><h3>Błąd</h3><p>' + esc(e.message) + '</p></div>';
+  } finally {
+    setLoading(false);
+  }
+}
+
+function renderList() {
+  const statusOrder = v => v === true ? 0 : v === false ? 2 : 1;
+  const sorted = [...allRestaurants].sort((a, b) => {
+    const so = statusOrder(a.openNow) - statusOrder(b.openNow);
+    if (so !== 0) return so;
+    if (currentSort === 'rating') return b.rating - a.rating;
+    if (currentSort === 'price')  return (a.priceLevel ?? 99) - (b.priceLevel ?? 99);
+    const vA = a.priceLevel ? a.rating / a.priceLevel : a.rating * 0.5;
+    const vB = b.priceLevel ? b.rating / b.priceLevel : b.rating * 0.5;
+    return vB - vA;
+  });
+
+  document.getElementById('restaurantsList').innerHTML = sorted.map(r => {
+    const sc = r.openNow === true ? 'open' : r.openNow === false ? 'closed' : 'unknown';
+    const lb = r.openNow === true ? 'Otwarte' : r.openNow === false ? 'Zamknięte' : 'Brak danych';
+    return `<div class="resto-card is-${sc} mode-${currentMode}">
+      <div class="card-body">
+        <div class="card-top">
+          <div class="card-name">${esc(r.name)}</div>
+          <span class="open-badge ${sc}">${lb}</span>
+        </div>
+        <div class="card-type">${typeLabel(r.types, currentMode)}</div>
+        <a class="card-address" href="${r.mapsUrl}" target="_blank" rel="noopener">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          ${esc(r.address)}
+        </a>
+        <a class="maps-btn" href="${r.mapsUrl}" target="_blank" rel="noopener">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          Google Maps
+        </a>
+      </div>
+      <div class="card-footer">
+        <div class="rating-badge">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--a200)" stroke="var(--a200)" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          ${r.rating ? r.rating.toFixed(1) : '–'}
+          <span class="rating-count">${r.ratingCount ? '(' + r.ratingCount.toLocaleString('pl') + ')' : ''}</span>
+        </div>
+        <div class="price-badge">${priceStr(r.priceLevel)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.onload = resetToNow;
+</script>
+</body>
 </html>
