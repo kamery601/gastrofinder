@@ -303,6 +303,13 @@ function typeLabel(types, mode) {
   return 'Lokal';
 }
 
+function showGeoDebug(message) {
+  const msg = String(message || 'Brak wiadomości');
+  console.log('[GEO]', msg);
+  const status = document.getElementById('statusText');
+  if (status) status.textContent = msg;
+}
+
 function parsePlaces(places) {
   return places.map(p => ({
     name: p.displayName?.text || '?',
@@ -337,49 +344,130 @@ function handleNearbyResponse(near) {
 }
 
 async function useMyLocation() {
-  if (!navigator.geolocation) {
-    setStatus('error', 'Twoja przeglądarka nie wspiera lokalizacji.');
-    return;
-  }
-
-  setLoading(true);
-  setStatus('searching', 'Pobieram lokalizację...');
   document.getElementById('mainContent').style.display = 'block';
-
-  navigator.geolocation.getCurrentPosition(async position => {
+  setLoading(true);
+  
+  // Diagnostyka: sprawdzenie wsparcia dla geolokalizacji
+  const isSecureContext = window.isSecureContext;
+  const hasGeoApi = !!navigator.geolocation;
+  
+  showGeoDebug('Diagnozowanie lokalizacji...');
+  console.log('[GEO] isSecureContext:', isSecureContext, 'hasGeoApi:', hasGeoApi);
+  
+  // Sprawdzenie stanu permission za pomocą Permissions API
+  let permissionState = 'unknown';
+  if (navigator.permissions && navigator.permissions.query) {
     try {
-      const lat = position.coords.latitude;
-      const lng = position.coords.longitude;
-      const nearRes = await fetch('/api/nearby-location?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng) + '&mode=' + currentMode);
-      const near = await nearRes.json();
-      if (near.error) {
-        setStatus('error', 'Błąd API: ' + (near.error.message || ''));
-        document.getElementById('restaurantsList').innerHTML =
-          '<div class="empty-state"><h3>Błąd API</h3><p>' + esc(near.error.message||'') + '</p></div>';
+      const permResult = await navigator.permissions.query({ name: 'geolocation' });
+      permissionState = permResult.state;
+      console.log('[GEO] Permission state:', permissionState);
+      showGeoDebug('Stan dostępu: ' + permissionState);
+      
+      if (permissionState === 'denied') {
+        setLoading(false);
+        setStatus('error', 'Lokalizacja zablokowana');
+        document.getElementById('restaurantsList').innerHTML = 
+          '<div class="empty-state">' +
+          '<h3>Dostęp do lokalizacji zablokowany</h3>' +
+          '<p>Lokalizacja jest zablokowana dla tej strony. Odblokuj ją w ustawieniach przeglądarki dla findresto-production.up.railway.app lub użyj wyszukiwania ręcznego.</p>' +
+          '</div>';
         return;
       }
-      handleNearbyResponse(near);
     } catch (e) {
-      setStatus('error', 'Błąd: ' + e.message);
-      document.getElementById('restaurantsList').innerHTML =
-        '<div class="empty-state"><h3>Błąd</h3><p>' + esc(e.message) + '</p></div>';
-    } finally {
-      setLoading(false);
+      console.log('[GEO] Permission check failed:', e.message);
     }
-  }, error => {
+  }
+  
+  if (!hasGeoApi) {
     setLoading(false);
-    if (error && error.code === 1) {
-      // PERMISSION_DENIED
-      setStatus('error', 'Odmowa dostępu do lokalizacji. Włącz lokalizację lub użyj wyszukiwania ręcznego.');
-      document.getElementById('restaurantsList').innerHTML = '<div class="empty-state"><h3>Dostęp do lokalizacji odmówiony</h3><p>Aby korzystać z funkcji GPS, zezwól na udostępnienie lokalizacji w przeglądarce, albo wyszukaj miasto ręcznie.</p></div>';
+    setStatus('error', 'Brak wsparcia dla geolokalizacji');
+    document.getElementById('restaurantsList').innerHTML = 
+      '<div class="empty-state"><h3>Geolokalizacja niedostępna</h3><p>Twoja przeglądarka nie wspiera funkcji lokalizacji.</p></div>';
+    return;
+  }
+  
+  showGeoDebug('Pobieram Twoją lokalizację...');
+  
+  // Funkcja pomocnicza do pobrania lokalizacji
+  const getPosition = (options) => new Promise((resolve, reject) => {
+    navigator.geolocation.getCurrentPosition(resolve, reject, options);
+  });
+  
+  try {
+    // Pierwszy raz z enableHighAccuracy: true
+    let position;
+    try {
+      showGeoDebug('Pobieram lokalizację (tryb wysokiej dokładności)...');
+      position = await getPosition({
+        enableHighAccuracy: true,
+        timeout: 20000,
+        maximumAge: 60000
+      });
+    } catch (error1) {
+      if (error1.code === 3) {
+        // TIMEOUT - spróbuj drugi raz z enableHighAccuracy: false (fallback)
+        console.log('[GEO] First attempt timeout, retrying with enableHighAccuracy: false');
+        showGeoDebug('Timeout, próbuję ponownie (tryb zwykły)...');
+        try {
+          position = await getPosition({
+            enableHighAccuracy: false,
+            timeout: 20000,
+            maximumAge: 60000
+          });
+        } catch (error2) {
+          throw error2;
+        }
+      } else {
+        throw error1;
+      }
+    }
+    
+    const lat = position.coords.latitude;
+    const lng = position.coords.longitude;
+    const accuracy = position.coords.accuracy;
+    
+    console.log('[GEO] Location acquired:', { lat, lng, accuracy });
+    showGeoDebug(`Lokalizacja pobrana: ${lat.toFixed(4)}, ${lng.toFixed(4)} (dokładność: ${Math.round(accuracy)}m)`);
+    
+    // Przed wyszukiwaniem pokazuję wiadomość
+    showGeoDebug('Lokalizacja pobrana, szukam miejsc...');
+    
+    const nearRes = await fetch('/api/nearby-location?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng) + '&mode=' + currentMode);
+    const near = await nearRes.json();
+    
+    if (near.error) {
+      console.log('[GEO] Backend error:', near.error);
+      setStatus('error', 'Błąd wyszukiwania');
+      document.getElementById('restaurantsList').innerHTML =
+        '<div class="empty-state"><h3>Błąd API</h3><p>' + esc(near.error.message || JSON.stringify(near.error)) + '</p></div>';
       return;
     }
-    setStatus('error', 'Nie udało się pobrać lokalizacji: ' + (error.message || ''));
-  }, {
-    enableHighAccuracy: true,
-    timeout: 10000,
-    maximumAge: 60000
-  });
+    
+    setLoading(false);
+    handleNearbyResponse(near);
+    
+  } catch (error) {
+    setLoading(false);
+    console.log('[GEO] Error:', error);
+    
+    let errorMsg = 'Nie udało się pobrać lokalizacji';
+    let errorDetail = error.message || '';
+    
+    if (error.code === 1) {
+      errorMsg = 'Odmowa dostępu do lokalizacji (PERMISSION_DENIED)';
+      errorDetail = 'Zezwól na lokalizację w ustawieniach przeglądarki.';
+    } else if (error.code === 2) {
+      errorMsg = 'Pozycja niedostępna (POSITION_UNAVAILABLE)';
+      errorDetail = 'Nie można pobrać sygnału GPS. Spróbuj ponownie za chwilę.';
+    } else if (error.code === 3) {
+      errorMsg = 'Przekroczony czas oczekiwania (TIMEOUT)';
+      errorDetail = 'Wyszukiwanie pozycji trwało zbyt długo. Spróbuj ponownie.';
+    }
+    
+    setStatus('error', errorMsg);
+    document.getElementById('restaurantsList').innerHTML =
+      '<div class="empty-state"><h3>' + errorMsg + '</h3><p>' + esc(errorDetail) + '</p><p style="font-size:0.85rem;color:var(--g400);margin-top:1rem;">Alternatywa: wyszukaj manualnie miasto w polu powyżej.</p></div>';
+  }
 }
 
 async function startSearch() {
