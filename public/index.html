@@ -106,7 +106,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
 .card-footer{display:flex;align-items:center;justify-content:space-between;padding:.65rem 1.25rem;background:var(--g50);border-top:1px solid var(--g100);}
 .rating-badge{display:flex;align-items:center;gap:.3rem;font-size:.85rem;font-weight:600;color:var(--a600);}
 .rating-count{font-size:.72rem;color:var(--g400);font-weight:400;}
+.distance-badge{font-size:.78rem;font-weight:600;color:var(--g400);margin-top:.25rem;}
 .price-badge{font-size:.82rem;font-weight:700;color:var(--g600);}
+.score-badge{font-size:.78rem;font-weight:700;color:var(--p400);margin-left:.6rem}
 
 .empty-state{text-align:center;padding:3rem 1rem;color:var(--g400);grid-column:1/-1;}
 .empty-state h3{font-family:'Fraunces',serif;font-size:1.1rem;color:var(--g600);margin-bottom:.4rem;}
@@ -128,9 +130,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
   <div class="search-box">
     <div class="search-row">
       <input type="text" id="cityInput" class="city-input"
-        placeholder="Wpisz miasto, np. Kraków, Zakopane, Gdańsk..."
+        placeholder="Wpisz miasto lub dzielnicę, np. Kraków, Kazimierz"
         autocomplete="off" onkeydown="if(event.key==='Enter')startSearch()"/>
       <button class="search-btn" id="searchBtn" onclick="startSearch()">Szukaj</button>
+      <button class="search-btn" id="geoBtn" onclick="useMyLocation()">📍 Użyj mojej lokalizacji</button>
     </div>
     <div class="time-bar">
       <span class="time-label">Czas:</span>
@@ -148,9 +151,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
 <div class="content" id="mainContent" style="display:none">
   <div class="toolbar">
     <div class="sort-bar">
-      <button class="sort-btn active" id="sort-rating" onclick="setSort('rating')">⭐ Ocena</button>
-      <button class="sort-btn inactive" id="sort-price" onclick="setSort('price')">💰 Cena</button>
+      <button class="sort-btn active" id="sort-rating" onclick="setSort('rating')">⭐ Najlepsze</button>
+      <button class="sort-btn inactive" id="sort-distance" onclick="setSort('distance')">📍 Najbliższe</button>
+      <button class="sort-btn inactive" id="sort-price" onclick="setSort('price')">💰 Najtańsze</button>
       <button class="sort-btn inactive" id="sort-value" onclick="setSort('value')">🏆 Jakość/Cena</button>
+      <button class="sort-btn inactive" id="open-only-btn" onclick="toggleOpenOnly()">🔓 Tylko otwarte</button>
     </div>
     <div class="legend">
       <div class="legend-item"><div class="legend-dot open"></div>Otwarte</div>
@@ -169,6 +174,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
 let allRestaurants = [];
 let currentSort = 'rating';
 let currentMode = 'food';
+let onlyOpen = false;
 let simHour = new Date().getHours();
 let simMin  = new Date().getMinutes();
 const PRICE_MAP = {PRICE_LEVEL_FREE:0,PRICE_LEVEL_INEXPENSIVE:1,PRICE_LEVEL_MODERATE:2,PRICE_LEVEL_EXPENSIVE:3,PRICE_LEVEL_VERY_EXPENSIVE:4};
@@ -247,9 +253,14 @@ function setMode(mode) {
 
 function setSort(t) {
   currentSort = t;
-  ['rating','price','value'].forEach(s => {
+  ['rating','distance','price','value'].forEach(s => {
     document.getElementById('sort-' + s).className = 'sort-btn ' + (s===t ? 'active' : 'inactive');
   });
+  renderList();
+}
+function toggleOpenOnly() {
+  onlyOpen = !onlyOpen;
+  document.getElementById('open-only-btn').className = 'sort-btn ' + (onlyOpen ? 'active' : 'inactive');
   renderList();
 }
 function setStatus(state, text) {
@@ -257,8 +268,11 @@ function setStatus(state, text) {
   document.getElementById('statusText').textContent = text;
 }
 function setLoading(on) {
-  const btn = document.getElementById('searchBtn');
-  btn.disabled = on; btn.textContent = on ? 'Szukam...' : 'Szukaj';
+  const searchBtn = document.getElementById('searchBtn');
+  const geoBtn = document.getElementById('geoBtn');
+  searchBtn.disabled = on;
+  geoBtn.disabled = on;
+  searchBtn.textContent = on ? 'Szukam...' : 'Szukaj';
   if (on) document.getElementById('restaurantsList').innerHTML =
     Array(6).fill('<div class="skeleton"></div>').join('');
 }
@@ -268,6 +282,10 @@ function esc(s) {
 function priceStr(lvl) {
   if (lvl === null || lvl === undefined) return '<span style="color:var(--g400)">–</span>';
   return ['','$','$$','$$$','$$$$'][lvl] || '–';
+}
+function formatDistance(km) {
+  if (km === null || km === undefined) return '–';
+  return km < 1 ? '<1 km' : km.toFixed(1) + ' km';
 }
 function typeLabel(types, mode) {
   if (mode === 'clubs') {
@@ -283,6 +301,85 @@ function typeLabel(types, mode) {
   const m = {restaurant:'Restauracja',cafe:'Kawiarnia',bar:'Bar',bakery:'Piekarnia',meal_takeaway:'Na wynos',meal_delivery:'Dostawa',coffee_shop:'Kawiarnia',fast_food_restaurant:'Fast food',pizza_restaurant:'Pizza',kebab_shop:'Kebab'};
   for (const t of (types||[])) if (m[t]) return m[t];
   return 'Lokal';
+}
+
+function parsePlaces(places) {
+  return places.map(p => ({
+    name: p.displayName?.text || '?',
+    address: p.formattedAddress || '',
+    rating: p.rating || 0,
+    ratingCount: p.userRatingCount || 0,
+    priceLevel: PRICE_MAP[p.priceLevel] != null ? PRICE_MAP[p.priceLevel] : null,
+    distanceKm: p.distanceKm ?? null,
+    score: p.score ?? null,
+    types: p.types || [],
+    currentOpeningHours: p.currentOpeningHours || {},
+    regularOpeningHours: p.regularOpeningHours || {},
+    mapsUrl: p.googleMapsUri || 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.displayName?.text||'')
+  }));
+}
+
+function handleNearbyResponse(near) {
+  const places = near.places || [];
+  if (!places.length) {
+    setStatus('done', 'Brak wyników w okolicy.');
+    document.getElementById('restaurantsList').innerHTML =
+      '<div class="empty-state"><h3>Brak wyników</h3><p>Nie znaleziono lokali w promieniu 3 km.</p></div>';
+    return false;
+  }
+  allRestaurants = parsePlaces(places);
+  const openCount = allRestaurants.filter(r => checkOpenAtTime(r, simHour, simMin) === true).length;
+  const closedCount = allRestaurants.filter(r => checkOpenAtTime(r, simHour, simMin) === false).length;
+  const timeStr = String(simHour).padStart(2,'0') + ':' + String(simMin).padStart(2,'0');
+  setStatus('done', allRestaurants.length + ' lokali — ' + openCount + ' otwartych, ' + closedCount + ' zamkniętych (status dla godziny ' + timeStr + ')');
+  renderList();
+  return true;
+}
+
+async function useMyLocation() {
+  if (!navigator.geolocation) {
+    setStatus('error', 'Twoja przeglądarka nie wspiera lokalizacji.');
+    return;
+  }
+
+  setLoading(true);
+  setStatus('searching', 'Pobieram lokalizację...');
+  document.getElementById('mainContent').style.display = 'block';
+
+  navigator.geolocation.getCurrentPosition(async position => {
+    try {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      const nearRes = await fetch('/api/nearby-location?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng) + '&mode=' + currentMode);
+      const near = await nearRes.json();
+      if (near.error) {
+        setStatus('error', 'Błąd API: ' + (near.error.message || ''));
+        document.getElementById('restaurantsList').innerHTML =
+          '<div class="empty-state"><h3>Błąd API</h3><p>' + esc(near.error.message||'') + '</p></div>';
+        return;
+      }
+      handleNearbyResponse(near);
+    } catch (e) {
+      setStatus('error', 'Błąd: ' + e.message);
+      document.getElementById('restaurantsList').innerHTML =
+        '<div class="empty-state"><h3>Błąd</h3><p>' + esc(e.message) + '</p></div>';
+    } finally {
+      setLoading(false);
+    }
+  }, error => {
+    setLoading(false);
+    if (error && error.code === 1) {
+      // PERMISSION_DENIED
+      setStatus('error', 'Odmowa dostępu do lokalizacji. Włącz lokalizację lub użyj wyszukiwania ręcznego.');
+      document.getElementById('restaurantsList').innerHTML = '<div class="empty-state"><h3>Dostęp do lokalizacji odmówiony</h3><p>Aby korzystać z funkcji GPS, zezwól na udostępnienie lokalizacji w przeglądarce, albo wyszukaj miasto ręcznie.</p></div>';
+      return;
+    }
+    setStatus('error', 'Nie udało się pobrać lokalizacji: ' + (error.message || ''));
+  }, {
+    enableHighAccuracy: true,
+    timeout: 10000,
+    maximumAge: 60000
+  });
 }
 
 async function startSearch() {
@@ -310,31 +407,7 @@ async function startSearch() {
         '<div class="empty-state"><h3>Błąd API</h3><p>' + esc(near.error.message||'') + '</p></div>';
       return;
     }
-    const places = near.places || [];
-    if (!places.length) {
-      setStatus('done', 'Brak wyników w okolicy.');
-      document.getElementById('restaurantsList').innerHTML =
-        '<div class="empty-state"><h3>Brak wyników</h3><p>Nie znaleziono lokali w promieniu 3 km.</p></div>';
-      return;
-    }
-    allRestaurants = places.map(p => {
-      return {
-        name: p.displayName?.text || '?',
-        address: p.formattedAddress || '',
-        rating: p.rating || 0,
-        ratingCount: p.userRatingCount || 0,
-        priceLevel: PRICE_MAP[p.priceLevel] != null ? PRICE_MAP[p.priceLevel] : null,
-        types: p.types || [],
-        currentOpeningHours: p.currentOpeningHours || {},
-        regularOpeningHours: p.regularOpeningHours || {},
-        mapsUrl: p.googleMapsUri || 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.displayName?.text||'')
-      };
-    });
-    const openCount   = allRestaurants.filter(r => checkOpenAtTime(r, simHour, simMin) === true).length;
-    const closedCount = allRestaurants.filter(r => checkOpenAtTime(r, simHour, simMin) === false).length;
-    const timeStr = String(simHour).padStart(2,'0') + ':' + String(simMin).padStart(2,'0');
-    setStatus('done', allRestaurants.length + ' lokali — ' + openCount + ' otwartych, ' + closedCount + ' zamkniętych (status dla godziny ' + timeStr + ')');
-    renderList();
+    if (!handleNearbyResponse(near)) return;
   } catch(e) {
     setStatus('error', 'Błąd: ' + e.message);
     document.getElementById('restaurantsList').innerHTML =
@@ -353,21 +426,22 @@ function renderList() {
     const bOpen = checkOpenAtTime(b, simHour, simMin);
     const so = statusOrder(aOpen) - statusOrder(bOpen);
     if (so !== 0) return so;
-    
-    if (currentSort === 'rating') {
-      // Sortuj po score = rating * log10(userRatingCount + 10)
-      const scoreB = calcScore(b);
-      const scoreA = calcScore(a);
-      return scoreB - scoreA;
+
+    if (currentSort === 'distance') {
+      return (a.distanceKm ?? 99999) - (b.distanceKm ?? 99999);
     }
-    if (currentSort === 'price')  return (a.priceLevel ?? 99) - (b.priceLevel ?? 99);
-    
-    const vA = a.priceLevel ? a.rating / a.priceLevel : a.rating * 0.5;
-    const vB = b.priceLevel ? b.rating / b.priceLevel : b.rating * 0.5;
+    if (currentSort === 'rating') {
+      return (b.score ?? 0) - (a.score ?? 0);
+    }
+    if (currentSort === 'price') return (a.priceLevel ?? 99) - (b.priceLevel ?? 99);
+
+    const vA = a.priceLevel ? a.rating / Math.max(1, a.priceLevel) : a.rating * 0.55;
+    const vB = b.priceLevel ? b.rating / Math.max(1, b.priceLevel) : b.rating * 0.55;
     return vB - vA;
   });
 
-  document.getElementById('restaurantsList').innerHTML = sorted.map(r => {
+  const visible = onlyOpen ? sorted.filter(r => checkOpenAtTime(r, simHour, simMin) === true) : sorted;
+  document.getElementById('restaurantsList').innerHTML = visible.map(r => {
     const openStatus = checkOpenAtTime(r, simHour, simMin);
     const sc = openStatus === true ? 'open' : openStatus === false ? 'closed' : 'unknown';
     const lb = openStatus === true ? 'Otwarte' : openStatus === false ? 'Zamknięte' : 'Brak danych';
@@ -388,10 +462,16 @@ function renderList() {
         </a>
       </div>
       <div class="card-footer">
-        <div class="rating-badge">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--a200)" stroke="var(--a200)" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          ${r.rating ? r.rating.toFixed(1) : '–'}
-          <span class="rating-count">${r.ratingCount ? '(' + r.ratingCount.toLocaleString('pl') + ')' : ''}</span>
+        <div>
+          <div style="display:flex;align-items:baseline;gap:.5rem;">
+            <div class="rating-badge">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--a200)" stroke="var(--a200)" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              ${r.rating ? r.rating.toFixed(1) : '–'}
+              <span class="rating-count">${r.ratingCount ? '(' + r.ratingCount.toLocaleString('pl') + ')' : ''}</span>
+            </div>
+            <div class="score-badge">${typeof r.score === 'number' ? r.score.toFixed(2) : '–'}</div>
+            <div class="distance-badge">${formatDistance(r.distanceKm)}</div>
+          </div>
         </div>
         <div class="price-badge">${priceStr(r.priceLevel)}</div>
       </div>
