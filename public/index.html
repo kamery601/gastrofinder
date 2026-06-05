@@ -386,52 +386,69 @@ async function useMyLocation() {
     return;
   }
   
-  showGeoDebug('Pobieram Twoją lokalizację...');
+  // Na telefonie: dodaj komunikat o sprawdzeniu ustawień
+  showGeoDebug('Jeśli przeglądarka nie pyta o zgodę, sprawdź ustawienia lokalizacji dla tej strony.');
   
   // Funkcja pomocnicza do pobrania lokalizacji
   const getPosition = (options) => new Promise((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(resolve, reject, options);
   });
   
+  let position;
+  let locationMode = 'unknown';
+  
   try {
-    // Pierwszy raz z enableHighAccuracy: true
-    let position;
+    // ETAP 1: Próba szybkiej lokalizacji
     try {
-      showGeoDebug('Pobieram lokalizację (tryb wysokiej dokładności)...');
+      showGeoDebug('Próbuję szybkiej lokalizacji...');
+      console.log('[GEO] Attempting fast geolocation (enableHighAccuracy: false, timeout: 8000)');
       position = await getPosition({
-        enableHighAccuracy: true,
-        timeout: 20000,
-        maximumAge: 60000
+        enableHighAccuracy: false,
+        timeout: 8000,
+        maximumAge: 300000
       });
+      locationMode = 'szybki';
+      console.log('[GEO] Fast geolocation succeeded');
     } catch (error1) {
-      if (error1.code === 3) {
-        // TIMEOUT - spróbuj drugi raz z enableHighAccuracy: false (fallback)
-        console.log('[GEO] First attempt timeout, retrying with enableHighAccuracy: false');
-        showGeoDebug('Timeout, próbuję ponownie (tryb zwykły)...');
+      // ETAP 2: Szybka próba się nie powiodła - spróbuj dokładnej
+      if (error1.code === 3 || error1.code === 2) {
+        // TIMEOUT lub POSITION_UNAVAILABLE - próbuj dokładnej lokalizacji
+        console.log('[GEO] Fast geolocation failed with code', error1.code, ', trying high accuracy...');
+        showGeoDebug('Szybka lokalizacja nieudana, próbuję dokładnej...');
         try {
           position = await getPosition({
-            enableHighAccuracy: false,
+            enableHighAccuracy: true,
             timeout: 20000,
-            maximumAge: 60000
+            maximumAge: 0
           });
+          locationMode = 'dokładny';
+          console.log('[GEO] High accuracy geolocation succeeded');
         } catch (error2) {
           throw error2;
         }
       } else {
+        // Inny błąd (np. PERMISSION_DENIED)
         throw error1;
       }
     }
     
+    // Obsługa sukcesu
     const lat = position.coords.latitude;
     const lng = position.coords.longitude;
     const accuracy = position.coords.accuracy;
     
-    console.log('[GEO] Location acquired:', { lat, lng, accuracy });
-    showGeoDebug(`Lokalizacja pobrana: ${lat.toFixed(4)}, ${lng.toFixed(4)} (dokładność: ${Math.round(accuracy)}m)`);
+    console.log('[GEO] Location acquired:', { lat, lng, accuracy, mode: locationMode });
     
-    // Przed wyszukiwaniem pokazuję wiadomość
-    showGeoDebug('Lokalizacja pobrana, szukam miejsc...');
+    // Wyświetl pełne informacje
+    if (locationMode === 'szybki') {
+      showGeoDebug(`Szybka lokalizacja pobrana: ${lat.toFixed(4)}, ${lng.toFixed(4)} (dokładność: ${Math.round(accuracy)}m)`);
+      showGeoDebug('Szybka lokalizacja pobrana, szukam miejsc...');
+    } else {
+      showGeoDebug(`Dokładna lokalizacja pobrana: ${lat.toFixed(4)}, ${lng.toFixed(4)} (dokładność: ${Math.round(accuracy)}m)`);
+      showGeoDebug('Dokładna lokalizacja pobrana, szukam miejsc...');
+    }
     
+    // Wywołaj API
     const nearRes = await fetch('/api/nearby-location?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng) + '&mode=' + currentMode);
     const near = await nearRes.json();
     
