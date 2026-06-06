@@ -365,12 +365,17 @@ async function useMyLocation() {
       
       if (permissionState === 'denied') {
         setLoading(false);
-        setStatus('error', 'Lokalizacja zablokowana');
-        document.getElementById('restaurantsList').innerHTML = 
+        setStatus('error', 'Lokalizacja jest zablokowana');
+        document.getElementById('restaurantsList').innerHTML =
           '<div class="empty-state">' +
-          '<h3>Dostęp do lokalizacji zablokowany</h3>' +
-          '<p>Lokalizacja jest zablokowana dla tej strony. Odblokuj ją w ustawieniach przeglądarki dla findresto-production.up.railway.app lub użyj wyszukiwania ręcznego.</p>' +
+          '<h3>Lokalizacja jest zablokowana</h3>' +
+          '<p>Wpisz miasto lub dzielnicę ręcznie, np. Kraków, Zakopane albo Bukowina Tatrzańska.</p>' +
           '</div>';
+        const cityInput = document.getElementById('cityInput');
+        if (cityInput) {
+          cityInput.placeholder = 'Wpisz miasto lub dzielnicę...';
+          cityInput.focus();
+        }
         return;
       }
     } catch (e) {
