@@ -11,6 +11,7 @@ const API_KEY = process.env.GOOGLE_API_KEY;
 app.use(express.static('public'));
 
 app.get('/api/geocode', async (req, res) => {
+  if (!req.query.address || !String(req.query.address).trim()) return res.status(400).json({ error: 'Brak adresu' });
   try {
     const json = await geocodeAddress(req.query.address, API_KEY);
     res.json(json);
@@ -20,6 +21,7 @@ app.get('/api/geocode', async (req, res) => {
 });
 
 app.get('/api/nearby', async (req, res) => {
+  if (!req.query.location) return res.status(400).json({ error: 'Brak location' });
   try {
     const [lat, lng] = req.query.location.split(',');
     const center = { latitude: parseFloat(lat), longitude: parseFloat(lng) };

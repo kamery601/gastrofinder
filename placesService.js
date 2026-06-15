@@ -4,6 +4,22 @@ const { calculateDistanceKm } = require('./distance');
 
 const FIELD_MASK = 'places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.priceLevel,places.types,places.currentOpeningHours,places.regularOpeningHours,places.businessStatus,places.googleMapsUri,places.location';
 
+
+const PRICE_LEVEL_MAP = {
+  PRICE_LEVEL_UNSPECIFIED: null,
+  PRICE_LEVEL_FREE: 0,
+  PRICE_LEVEL_INEXPENSIVE: 1,
+  PRICE_LEVEL_MODERATE: 2,
+  PRICE_LEVEL_EXPENSIVE: 3,
+  PRICE_LEVEL_VERY_EXPENSIVE: 4
+};
+function normalizePriceLevel(raw) {
+  if (raw === null || raw === undefined) return null;
+  if (typeof raw === "number") return raw;
+  const v = PRICE_LEVEL_MAP[raw];
+  return v !== undefined ? v : null;
+}
+
 const SEARCH_CONFIG = {
   food: {
     includedTypes: ['restaurant', 'cafe', 'bar', 'bakery', 'meal_takeaway', 'meal_delivery', 'coffee_shop', 'fast_food_restaurant', 'pizza_restaurant'],
@@ -61,6 +77,7 @@ async function getNearbyPlaces(center, mode, apiKey) {
             const distanceKm = calculateDistanceKm(center, place.location);
             if (distanceKm !== null) place.distanceKm = distanceKm;
           }
+          place.priceLevel = normalizePriceLevel(place.priceLevel);
           results.push(place);
         }
       }
