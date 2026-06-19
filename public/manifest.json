@@ -1,0 +1,32 @@
+{
+  "name": "GastroFinder",
+  "short_name": "GastroFinder",
+  "description": "Sprawdź co jest otwarte — restauracje, bary i sklepy w Twojej okolicy.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#F7F5EF",
+  "theme_color": "#412402",
+  "lang": "pl",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

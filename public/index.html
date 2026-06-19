@@ -2,9 +2,18 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>GastroFinder</title>
+<meta name="description" content="Sprawdź co jest otwarte — restauracje, bary i sklepy w Twojej okolicy.">
+<meta name="theme-color" content="#412402">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="GastroFinder">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <style>
 :root{
   --a50:#FAEEDA;--a100:#FAC775;--a200:#EF9F27;--a400:#BA7517;--a600:#854F0B;--a800:#633806;--a900:#412402;
@@ -28,11 +37,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
 
 .search-card{max-width:960px;margin:-3rem auto 0;padding:0 1.5rem;position:relative;z-index:10;}
 .search-box{background:white;border-radius:20px;padding:1.75rem;box-shadow:0 4px 32px rgba(65,36,2,.13);border:1px solid var(--a100);}
-.search-row{display:flex;gap:.75rem;align-items:center;}
-.city-input{flex:1;font-family:'DM Sans',sans-serif;font-size:1.05rem;padding:.85rem 1.1rem;border:1.5px solid var(--g200);border-radius:12px;color:var(--g800);outline:none;background:var(--g50);transition:border-color .2s;}
+.search-row{display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;}
+.city-input{flex:1;min-width:220px;font-family:'DM Sans',sans-serif;font-size:1.05rem;padding:.85rem 1.1rem;border:1.5px solid var(--g200);border-radius:12px;color:var(--g800);outline:none;background:var(--g50);transition:border-color .2s;}
 .city-input:focus{border-color:var(--a200);background:white;}
 .city-input::placeholder{color:var(--g400);}
-.search-btn{font-family:'DM Sans',sans-serif;font-size:.95rem;font-weight:600;padding:.85rem 1.8rem;background:var(--a400);color:white;border:none;border-radius:12px;cursor:pointer;transition:background .2s;white-space:nowrap;}
+.search-btn{font-family:'DM Sans',sans-serif;font-size:.95rem;font-weight:600;padding:.85rem 1.4rem;background:var(--a400);color:white;border:none;border-radius:12px;cursor:pointer;transition:background .2s;white-space:nowrap;}
 .search-btn:hover{background:var(--a600);}
 .search-btn:disabled{background:var(--g200);color:var(--g400);cursor:not-allowed;}
 
@@ -41,7 +50,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
 .time-input{font-family:'DM Sans',sans-serif;font-size:.88rem;padding:.4rem .75rem;border:1.5px solid var(--g200);border-radius:8px;background:var(--g50);color:var(--g800);outline:none;}
 .time-reset{font-family:'DM Sans',sans-serif;font-size:.78rem;font-weight:600;padding:.4rem .75rem;background:var(--a50);color:var(--a600);border:1px solid var(--a100);border-radius:8px;cursor:pointer;}
 
-/* MODE TABS */
 .mode-tabs{display:flex;gap:.5rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--g100);flex-wrap:wrap;}
 .mode-tab{font-family:'DM Sans',sans-serif;font-size:.85rem;font-weight:600;padding:.5rem 1.1rem;border-radius:20px;cursor:pointer;border:1.5px solid transparent;transition:all .15s;display:flex;align-items:center;gap:.4rem;}
 .mode-tab.food.active{background:var(--a900);color:var(--a100);border-color:var(--a900);}
@@ -55,12 +63,22 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
 .mode-tab.shops24.inactive:hover{border-color:var(--b400);color:var(--b400);}
 
 .content{max-width:960px;margin:2rem auto;padding:0 1.5rem;}
-.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:.75rem;}
+.toolbar{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1rem;flex-wrap:wrap;gap:.75rem;}
 .sort-bar{display:flex;gap:.5rem;flex-wrap:wrap;}
 .sort-btn{font-family:'DM Sans',sans-serif;font-size:.82rem;font-weight:600;padding:.45rem 1rem;border-radius:20px;cursor:pointer;border:1.5px solid transparent;transition:all .15s;}
 .sort-btn.active{background:var(--a900);color:var(--a100);border-color:var(--a900);}
 .sort-btn.inactive{background:white;color:var(--g600);border-color:var(--g200);}
 .sort-btn.inactive:hover{border-color:var(--a200);color:var(--a600);}
+
+.filters-panel{background:white;border:1px solid var(--g100);border-radius:16px;padding:1rem 1.1rem;margin-bottom:1rem;display:grid;gap:.85rem;}
+.filters-title{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--g400);}
+.filters-row{display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;}
+.filter-label{font-size:.78rem;font-weight:600;color:var(--g600);min-width:88px;}
+.filter-select{font-family:'DM Sans',sans-serif;font-size:.82rem;padding:.42rem .7rem;border:1.5px solid var(--g200);border-radius:10px;background:var(--g50);color:var(--g800);}
+.filter-chip{font-family:'DM Sans',sans-serif;font-size:.78rem;font-weight:600;padding:.42rem .85rem;border-radius:20px;cursor:pointer;border:1.5px solid var(--g200);background:white;color:var(--g600);transition:all .15s;}
+.filter-chip.active{background:var(--a900);color:var(--a100);border-color:var(--a900);}
+.filter-chip.toggle.active{background:var(--gr50);color:var(--gr800);border-color:var(--gr400);}
+.filter-chip.venue.active{background:var(--a50);color:var(--a800);border-color:var(--a200);}
 
 .legend{display:flex;gap:1rem;font-size:.75rem;color:var(--g600);flex-wrap:wrap;}
 .legend-item{display:flex;align-items:center;gap:.35rem;}
@@ -76,17 +94,23 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
 .status-dot.error{background:var(--r400);}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
+#resultsMap{display:none;height:300px;border-radius:16px;border:1px solid var(--g100);margin-bottom:1rem;overflow:hidden;z-index:1;}
+.gf-pin-wrap{background:transparent;border:none;}
+.gf-pin{display:block;width:18px;height:18px;border-radius:50%;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,.28);}
+.gf-popup{font-family:'DM Sans',sans-serif;font-size:.82rem;line-height:1.45;min-width:180px;}
+.gf-popup strong{display:block;font-size:.92rem;margin-bottom:.25rem;color:var(--g800);}
+.gf-popup-meta{color:var(--g600);margin-bottom:.15rem;}
+.gf-popup a{color:var(--t600);font-weight:600;text-decoration:none;}
+.gf-popup a:hover{text-decoration:underline;}
+
 .restaurants-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;}
 .resto-card{background:white;border-radius:16px;border:1px solid var(--g100);overflow:hidden;transition:transform .15s,box-shadow .15s;display:flex;flex-direction:column;}
 .resto-card:hover{transform:translateY(-2px);box-shadow:0 6px 24px rgba(65,36,2,.1);}
 .resto-card.is-open{border-left:3px solid var(--gr400);}
 .resto-card.is-closed{border-left:3px solid var(--r400);opacity:.8;}
 .resto-card.is-unknown{border-left:3px solid var(--g200);}
-
-/* Club card accent */
 .resto-card.mode-clubs.is-open{border-left-color:var(--p400);}
 .resto-card.mode-clubs.is-closed{border-left-color:#c4b5fd;}
-/* Shop card accent */
 .resto-card.mode-shops24.is-open{border-left-color:var(--b400);}
 .resto-card.mode-shops24.is-closed{border-left-color:#93c5fd;}
 
@@ -97,7 +121,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
 .open-badge.open{background:var(--gr50);color:var(--gr800);}
 .open-badge.closed{background:var(--r50);color:var(--r800);}
 .open-badge.unknown{background:var(--g100);color:var(--g600);}
-
 .card-type{font-size:.73rem;color:var(--g400);font-weight:500;margin-bottom:.75rem;}
 .card-address{display:flex;align-items:flex-start;gap:.4rem;font-size:.8rem;color:var(--g600);text-decoration:none;margin-bottom:.85rem;line-height:1.4;}
 .card-address:hover{color:var(--a400);}
@@ -106,15 +129,25 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
 .card-footer{display:flex;align-items:center;justify-content:space-between;padding:.65rem 1.25rem;background:var(--g50);border-top:1px solid var(--g100);}
 .rating-badge{display:flex;align-items:center;gap:.3rem;font-size:.85rem;font-weight:600;color:var(--a600);}
 .rating-count{font-size:.72rem;color:var(--g400);font-weight:400;}
-.distance-badge{font-size:.78rem;font-weight:600;color:var(--g400);margin-top:.25rem;}
+.distance-badge{font-size:.78rem;font-weight:600;color:var(--g600);}
 .price-badge{font-size:.82rem;font-weight:700;color:var(--g600);}
-.score-badge{font-size:.78rem;font-weight:700;color:var(--p400);margin-left:.6rem}
 
 .empty-state{text-align:center;padding:3rem 1rem;color:var(--g400);grid-column:1/-1;}
 .empty-state h3{font-family:'Fraunces',serif;font-size:1.1rem;color:var(--g600);margin-bottom:.4rem;}
 .skeleton{background:linear-gradient(90deg,var(--g100) 25%,var(--g50) 50%,var(--g100) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:16px;height:190px;}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
-@media(max-width:600px){.logo{font-size:1.8rem;}.search-row{flex-direction:column;}.search-btn{width:100%;}}
+
+.site-footer{margin-top:48px;padding:18px 24px;text-align:center;font-size:.78rem;color:#888;border-top:1px solid #e5e7eb}
+.site-footer a{color:#6366f1;text-decoration:none;font-weight:500}
+.site-footer a:hover{opacity:.75;text-decoration:underline}
+.site-footer .heart{color:#e55;margin:0 2px}
+
+@media(max-width:600px){
+  .logo{font-size:1.8rem;}
+  .search-row{flex-direction:column;}
+  .search-btn{width:100%;}
+  #resultsMap{height:240px;}
+}
 </style>
 </head>
 <body>
@@ -134,6 +167,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
         autocomplete="off" onkeydown="if(event.key==='Enter')startSearch()"/>
       <button class="search-btn" id="searchBtn" onclick="startSearch()">Szukaj</button>
       <button class="search-btn" id="geoBtn" onclick="useMyLocation()">📍 Użyj mojej lokalizacji</button>
+      <button class="search-btn" id="installBtn" style="display:none;background:var(--a800);">📲 Zainstaluj</button>
     </div>
     <div class="time-bar">
       <span class="time-label">Czas:</span>
@@ -155,7 +189,6 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
       <button class="sort-btn inactive" id="sort-distance" onclick="setSort('distance')">📍 Najbliższe</button>
       <button class="sort-btn inactive" id="sort-price" onclick="setSort('price')">💰 Najtańsze</button>
       <button class="sort-btn inactive" id="sort-value" onclick="setSort('value')">🏆 Jakość/Cena</button>
-      <button class="sort-btn inactive" id="open-only-btn" onclick="toggleOpenOnly()">🔓 Tylko otwarte</button>
     </div>
     <div class="legend">
       <div class="legend-item"><div class="legend-dot open"></div>Otwarte</div>
@@ -163,391 +196,53 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
       <div class="legend-item"><div class="legend-dot unknown"></div>Brak danych</div>
     </div>
   </div>
+
+  <div class="filters-panel">
+    <div class="filters-title">Filtry</div>
+    <div class="filters-row">
+      <span class="filter-label">Max odległość</span>
+      <select id="filterMaxDistance" class="filter-select" aria-label="Maksymalna odległość">
+        <option value="">Bez limitu</option>
+        <option value="0.5">500 m</option>
+        <option value="1">1 km</option>
+        <option value="2">2 km</option>
+        <option value="5">5 km</option>
+      </select>
+      <span class="filter-label">Min. ocena</span>
+      <select id="filterMinRating" class="filter-select" aria-label="Minimalna ocena">
+        <option value="0">Dowolna</option>
+        <option value="3.5">3.5+</option>
+        <option value="4">4.0+</option>
+        <option value="4.5">4.5+</option>
+      </select>
+      <button type="button" class="filter-chip toggle" id="filterOnlyOpen">🔓 Tylko otwarte</button>
+      <button type="button" class="filter-chip toggle" id="filterHideUnknown">Ukryj „brak danych”</button>
+    </div>
+    <div class="filters-row" id="venueTypeRow">
+      <span class="filter-label">Typ lokalu</span>
+      <button type="button" class="filter-chip venue" data-venue-type="pizza">🍕 Pizza</button>
+      <button type="button" class="filter-chip venue" data-venue-type="kebab">🥙 Kebab</button>
+      <button type="button" class="filter-chip venue" data-venue-type="cafe">☕ Kawiarnia</button>
+      <button type="button" class="filter-chip venue" data-venue-type="restaurant">🍽️ Restauracja</button>
+      <button type="button" class="filter-chip venue" data-venue-type="bar">🍺 Bar</button>
+    </div>
+  </div>
+
   <div class="status-bar">
     <div class="status-dot done" id="statusDot"></div>
     <span id="statusText">Gotowy</span>
   </div>
+
+  <div id="resultsMap" aria-label="Mapa wyników"></div>
   <div id="restaurantsList" class="restaurants-grid"></div>
 </div>
 
+<footer class="site-footer">Twórca strony: <a href="https://tel-service.pl/" target="_blank" rel="noopener">TEL-SERVICE</a> <span class="heart">♥</span> przez V</footer>
+
 <script src="/opening-hours.js"></script>
-<script>
-let allRestaurants = [];
-let currentSort = 'rating';
-let currentMode = 'food';
-let onlyOpen = false;
-let simHour = new Date().getHours();
-let simMin  = new Date().getMinutes();
-const PRICE_MAP = {PRICE_LEVEL_FREE:0,PRICE_LEVEL_INEXPENSIVE:1,PRICE_LEVEL_MODERATE:2,PRICE_LEVEL_EXPENSIVE:3,PRICE_LEVEL_VERY_EXPENSIVE:4};
-
-function checkOpenAtTime(place, hour, minute) {
-  return GastroOpeningHours.isOpenAt(place, hour, minute);
-}
-
-function resetToNow() {
-  const n = new Date();
-  simHour = n.getHours(); simMin = n.getMinutes();
-  document.getElementById('simulatedTime').value =
-    String(simHour).padStart(2,'0') + ':' + String(simMin).padStart(2,'0');
-  if (allRestaurants.length) renderList();
-}
-function onTimeChange() {
-  const v = document.getElementById('simulatedTime').value;
-  if (!v) return;
-  [simHour, simMin] = v.split(':').map(Number);
-  if (allRestaurants.length) renderList();
-}
-
-function setMode(mode) {
-  currentMode = mode;
-  ['food','clubs','shops24'].forEach(m => {
-    const btn = document.getElementById('tab-' + m);
-    btn.className = 'mode-tab ' + m + (m === mode ? ' active' : ' inactive');
-  });
-  // Auto-search if city already entered
-  const city = document.getElementById('cityInput').value.trim();
-  if (city) startSearch();
-}
-
-function setSort(t) {
-  currentSort = t;
-  ['rating','distance','price','value'].forEach(s => {
-    document.getElementById('sort-' + s).className = 'sort-btn ' + (s===t ? 'active' : 'inactive');
-  });
-  renderList();
-}
-function toggleOpenOnly() {
-  onlyOpen = !onlyOpen;
-  document.getElementById('open-only-btn').className = 'sort-btn ' + (onlyOpen ? 'active' : 'inactive');
-  renderList();
-}
-function setStatus(state, text) {
-  document.getElementById('statusDot').className = 'status-dot ' + state;
-  document.getElementById('statusText').textContent = text;
-}
-function setLoading(on) {
-  const searchBtn = document.getElementById('searchBtn');
-  const geoBtn = document.getElementById('geoBtn');
-  searchBtn.disabled = on;
-  geoBtn.disabled = on;
-  searchBtn.textContent = on ? 'Szukam...' : 'Szukaj';
-  if (on) document.getElementById('restaurantsList').innerHTML =
-    Array(6).fill('<div class="skeleton"></div>').join('');
-}
-function esc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-function priceStr(lvl) {
-  if (lvl === null || lvl === undefined) return '<span style="color:var(--g400)">–</span>';
-  return ['','$','$$','$$$','$$$$'][lvl] || '–';
-}
-function formatDistance(km) {
-  if (km === null || km === undefined) return '';
-  if (km < 1) return Math.max(50, Math.round(km * 1000)) + ' m';
-  return km.toFixed(1) + ' km';
-}
-function typeLabel(types, mode) {
-  if (mode === 'clubs') {
-    const m = {night_club:'Klub nocny',bar:'Bar',live_music_venue:'Live music',pub:'Pub',disco:'Dyskoteka'};
-    for (const t of (types||[])) if (m[t]) return m[t];
-    return 'Klub / bar';
-  }
-  if (mode === 'shops24') {
-    const m = {convenience_store:'Sklep całodobowy',supermarket:'Supermarket',grocery_store:'Sklep spożywczy',gas_station:'Stacja paliw',pharmacy:'Apteka'};
-    for (const t of (types||[])) if (m[t]) return m[t];
-    return 'Sklep';
-  }
-  const m = {restaurant:'Restauracja',cafe:'Kawiarnia',bar:'Bar',bakery:'Piekarnia',meal_takeaway:'Na wynos',meal_delivery:'Dostawa',coffee_shop:'Kawiarnia',fast_food_restaurant:'Fast food',pizza_restaurant:'Pizza',kebab_shop:'Kebab'};
-  for (const t of (types||[])) if (m[t]) return m[t];
-  return 'Lokal';
-}
-
-function showGeoDebug(message) {
-  const msg = String(message || 'Brak wiadomości');
-  console.log('[GEO]', msg);
-  const status = document.getElementById('statusText');
-  if (status) status.textContent = msg;
-}
-
-function parsePlaces(places) {
-  return places.map(p => ({
-    name: p.displayName?.text || '?',
-    address: p.formattedAddress || '',
-    rating: p.rating || 0,
-    ratingCount: p.userRatingCount || 0,
-    priceLevel: PRICE_MAP[p.priceLevel] != null ? PRICE_MAP[p.priceLevel] : null,
-    distanceKm: p.distanceKm ?? null,
-    score: p.score ?? null,
-    types: p.types || [],
-    currentOpeningHours: p.currentOpeningHours || {},
-    regularOpeningHours: p.regularOpeningHours || {},
-    mapsUrl: p.googleMapsUri || 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.displayName?.text||'')
-  }));
-}
-
-function handleNearbyResponse(near) {
-  const places = near.places || [];
-  if (!places.length) {
-    setStatus('done', 'Brak wyników w okolicy.');
-    document.getElementById('restaurantsList').innerHTML =
-      '<div class="empty-state"><h3>Brak wyników</h3><p>Nie znaleziono lokali w promieniu 3 km.</p></div>';
-    return false;
-  }
-  allRestaurants = parsePlaces(places);
-  const openCount = allRestaurants.filter(r => checkOpenAtTime(r, simHour, simMin) === true).length;
-  const closedCount = allRestaurants.filter(r => checkOpenAtTime(r, simHour, simMin) === false).length;
-  const timeStr = String(simHour).padStart(2,'0') + ':' + String(simMin).padStart(2,'0');
-  setStatus('done', allRestaurants.length + ' lokali — ' + openCount + ' otwartych, ' + closedCount + ' zamkniętych (status dla godziny ' + timeStr + ')');
-  renderList();
-  return true;
-}
-
-async function useMyLocation() {
-  document.getElementById('mainContent').style.display = 'block';
-  setLoading(true);
-  
-  // Diagnostyka: sprawdzenie wsparcia dla geolokalizacji
-  const isSecureContext = window.isSecureContext;
-  const hasGeoApi = !!navigator.geolocation;
-  
-  showGeoDebug('Diagnozowanie lokalizacji...');
-  console.log('[GEO] isSecureContext:', isSecureContext, 'hasGeoApi:', hasGeoApi);
-  
-  // Sprawdzenie stanu permission za pomocą Permissions API
-  let permissionState = 'unknown';
-  if (navigator.permissions && navigator.permissions.query) {
-    try {
-      const permResult = await navigator.permissions.query({ name: 'geolocation' });
-      permissionState = permResult.state;
-      console.log('[GEO] Permission state:', permissionState);
-      showGeoDebug('Stan dostępu: ' + permissionState);
-      
-      if (permissionState === 'denied') {
-        setLoading(false);
-        setStatus('error', 'Lokalizacja jest zablokowana');
-        document.getElementById('restaurantsList').innerHTML =
-          '<div class="empty-state">' +
-          '<h3>Lokalizacja jest zablokowana</h3>' +
-          '<p>Wpisz miasto lub dzielnicę ręcznie, np. Kraków, Zakopane albo Bukowina Tatrzańska.</p>' +
-          '</div>';
-        const cityInput = document.getElementById('cityInput');
-        if (cityInput) {
-          cityInput.placeholder = 'Wpisz miasto lub dzielnicę...';
-          cityInput.focus();
-        }
-        return;
-      }
-    } catch (e) {
-      console.log('[GEO] Permission check failed:', e.message);
-    }
-  }
-  
-  if (!hasGeoApi) {
-    setLoading(false);
-    setStatus('error', 'Brak wsparcia dla geolokalizacji');
-    document.getElementById('restaurantsList').innerHTML = 
-      '<div class="empty-state"><h3>Geolokalizacja niedostępna</h3><p>Twoja przeglądarka nie wspiera funkcji lokalizacji.</p></div>';
-    return;
-  }
-  
-  // Na telefonie: dodaj komunikat o sprawdzeniu ustawień
-  showGeoDebug('Jeśli przeglądarka nie pyta o zgodę, sprawdź ustawienia lokalizacji dla tej strony.');
-  
-  // Funkcja pomocnicza do pobrania lokalizacji
-  const getPosition = (options) => new Promise((resolve, reject) => {
-    navigator.geolocation.getCurrentPosition(resolve, reject, options);
-  });
-  
-  let position;
-  let locationMode = 'unknown';
-  
-  try {
-    // ETAP 1: Próba szybkiej lokalizacji
-    try {
-      showGeoDebug('Próbuję szybkiej lokalizacji...');
-      console.log('[GEO] Attempting fast geolocation (enableHighAccuracy: false, timeout: 8000)');
-      position = await getPosition({
-        enableHighAccuracy: false,
-        timeout: 8000,
-        maximumAge: 300000
-      });
-      locationMode = 'szybki';
-      console.log('[GEO] Fast geolocation succeeded');
-    } catch (error1) {
-      // ETAP 2: Szybka próba się nie powiodła - spróbuj dokładnej
-      if (error1.code === 3 || error1.code === 2) {
-        // TIMEOUT lub POSITION_UNAVAILABLE - próbuj dokładnej lokalizacji
-        console.log('[GEO] Fast geolocation failed with code', error1.code, ', trying high accuracy...');
-        showGeoDebug('Szybka lokalizacja nieudana, próbuję dokładnej...');
-        try {
-          position = await getPosition({
-            enableHighAccuracy: true,
-            timeout: 20000,
-            maximumAge: 0
-          });
-          locationMode = 'dokładny';
-          console.log('[GEO] High accuracy geolocation succeeded');
-        } catch (error2) {
-          throw error2;
-        }
-      } else {
-        // Inny błąd (np. PERMISSION_DENIED)
-        throw error1;
-      }
-    }
-    
-    // Obsługa sukcesu
-    const lat = position.coords.latitude;
-    const lng = position.coords.longitude;
-    const accuracy = position.coords.accuracy;
-    
-    console.log('[GEO] Location acquired:', { lat, lng, accuracy, mode: locationMode });
-    
-    // Wyświetl pełne informacje
-    if (locationMode === 'szybki') {
-      showGeoDebug(`Szybka lokalizacja pobrana: ${lat.toFixed(4)}, ${lng.toFixed(4)} (dokładność: ${Math.round(accuracy)}m)`);
-      showGeoDebug('Szybka lokalizacja pobrana, szukam miejsc...');
-    } else {
-      showGeoDebug(`Dokładna lokalizacja pobrana: ${lat.toFixed(4)}, ${lng.toFixed(4)} (dokładność: ${Math.round(accuracy)}m)`);
-      showGeoDebug('Dokładna lokalizacja pobrana, szukam miejsc...');
-    }
-    
-    // Wywołaj API
-    const nearRes = await fetch('/api/nearby-location?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng) + '&mode=' + currentMode);
-    const near = await nearRes.json();
-    
-    if (near.error) {
-      console.log('[GEO] Backend error:', near.error);
-      setStatus('error', 'Błąd wyszukiwania');
-      document.getElementById('restaurantsList').innerHTML =
-        '<div class="empty-state"><h3>Błąd API</h3><p>' + esc(near.error.message || JSON.stringify(near.error)) + '</p></div>';
-      return;
-    }
-    
-    setLoading(false);
-    handleNearbyResponse(near);
-    
-  } catch (error) {
-    setLoading(false);
-    console.log('[GEO] Error:', error);
-    
-    let errorMsg = 'Nie udało się pobrać lokalizacji';
-    let errorDetail = error.message || '';
-    
-    if (error.code === 1) {
-      errorMsg = 'Odmowa dostępu do lokalizacji (PERMISSION_DENIED)';
-      errorDetail = 'Zezwól na lokalizację w ustawieniach przeglądarki.';
-    } else if (error.code === 2) {
-      errorMsg = 'Pozycja niedostępna (POSITION_UNAVAILABLE)';
-      errorDetail = 'Nie można pobrać sygnału GPS. Spróbuj ponownie za chwilę.';
-    } else if (error.code === 3) {
-      errorMsg = 'Przekroczony czas oczekiwania (TIMEOUT)';
-      errorDetail = 'Wyszukiwanie pozycji trwało zbyt długo. Spróbuj ponownie.';
-    }
-    
-    setStatus('error', errorMsg);
-    document.getElementById('restaurantsList').innerHTML =
-      '<div class="empty-state"><h3>' + errorMsg + '</h3><p>' + esc(errorDetail) + '</p><p style="font-size:0.85rem;color:var(--g400);margin-top:1rem;">Alternatywa: wyszukaj manualnie miasto w polu powyżej.</p></div>';
-  }
-}
-
-async function startSearch() {
-  const city = document.getElementById('cityInput').value.trim();
-  if (!city) { document.getElementById('cityInput').focus(); return; }
-  document.getElementById('mainContent').style.display = 'block';
-  const modeLabels = {food:'restauracji i barów', clubs:'klubów i dyskotek', shops24:'sklepów'};
-  setStatus('searching', 'Szukam ' + modeLabels[currentMode] + ' w: ' + city + '...');
-  setLoading(true);
-  try {
-    const geoRes = await fetch('/api/geocode?address=' + encodeURIComponent(city + ', Polska'));
-    const geo = await geoRes.json();
-    if (!geo.results?.length) {
-      setStatus('error', 'Nie znaleziono miasta.');
-      document.getElementById('restaurantsList').innerHTML =
-        '<div class="empty-state"><h3>Nie znaleziono</h3><p>Sprawdź pisownię nazwy miasta.</p></div>';
-      return;
-    }
-    const loc = geo.results[0].geometry.location;
-    const nearRes = await fetch('/api/nearby?location=' + loc.lat + ',' + loc.lng + '&mode=' + currentMode);
-    const near = await nearRes.json();
-    if (near.error) {
-      setStatus('error', 'Błąd API: ' + (near.error.message || ''));
-      document.getElementById('restaurantsList').innerHTML =
-        '<div class="empty-state"><h3>Błąd API</h3><p>' + esc(near.error.message||'') + '</p></div>';
-      return;
-    }
-    if (!handleNearbyResponse(near)) return;
-  } catch(e) {
-    setStatus('error', 'Błąd: ' + e.message);
-    document.getElementById('restaurantsList').innerHTML =
-      '<div class="empty-state"><h3>Błąd</h3><p>' + esc(e.message) + '</p></div>';
-  } finally {
-    setLoading(false);
-  }
-}
-
-function renderList() {
-  const statusOrder = v => v === true ? 0 : v === false ? 2 : 1;
-  
-  const sorted = [...allRestaurants].sort((a, b) => {
-    const aOpen = checkOpenAtTime(a, simHour, simMin);
-    const bOpen = checkOpenAtTime(b, simHour, simMin);
-    const so = statusOrder(aOpen) - statusOrder(bOpen);
-    if (so !== 0) return so;
-
-    if (currentSort === 'distance') {
-      return (a.distanceKm ?? 99999) - (b.distanceKm ?? 99999);
-    }
-    if (currentSort === 'rating') {
-      return (b.score ?? 0) - (a.score ?? 0);
-    }
-    if (currentSort === 'price') return (a.priceLevel ?? 99) - (b.priceLevel ?? 99);
-
-    const vA = a.priceLevel ? a.rating / Math.max(1, a.priceLevel) : a.rating * 0.55;
-    const vB = b.priceLevel ? b.rating / Math.max(1, b.priceLevel) : b.rating * 0.55;
-    return vB - vA;
-  });
-
-  const visible = onlyOpen ? sorted.filter(r => checkOpenAtTime(r, simHour, simMin) === true) : sorted;
-  document.getElementById('restaurantsList').innerHTML = visible.map(r => {
-    const openStatus = checkOpenAtTime(r, simHour, simMin);
-    const sc = openStatus === true ? 'open' : openStatus === false ? 'closed' : 'unknown';
-    const lb = openStatus === true ? 'Otwarte' : openStatus === false ? 'Zamknięte' : 'Brak danych';
-    return `<div class="resto-card is-${sc} mode-${currentMode}">
-      <div class="card-body">
-        <div class="card-top">
-          <div class="card-name">${esc(r.name)}</div>
-          <span class="open-badge ${sc}">${lb}</span>
-        </div>
-        <div class="card-type">${typeLabel(r.types, currentMode)}</div>
-        <a class="card-address" href="${r.mapsUrl}" target="_blank" rel="noopener">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-          ${esc(r.address)}
-        </a>
-        <a class="maps-btn" href="${r.mapsUrl}" target="_blank" rel="noopener">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-          Google Maps
-        </a>
-      </div>
-      <div class="card-footer">
-        <div>
-          <div style="display:flex;align-items:baseline;gap:.5rem;">
-            <div class="rating-badge">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="var(--a200)" stroke="var(--a200)" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              ${r.rating ? r.rating.toFixed(1) : '–'}
-              <span class="rating-count">${r.ratingCount ? '(' + r.ratingCount.toLocaleString('pl') + ')' : ''}</span>
-            </div>
-            <div class="score-badge" title="Ocena × log10(opinie + 10)">${typeof r.score === 'number' ? r.score.toFixed(2) : '–'}</div>
-            ${r.distanceKm != null ? '<div class="distance-badge">' + formatDistance(r.distanceKm) + '</div>' : ''}
-          </div>
-        </div>
-        <div class="price-badge">${priceStr(r.priceLevel)}</div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-window.onload = resetToNow;
-</script>
-<style>.site-footer{margin-top:48px;padding:18px 24px;text-align:center;font-size:.78rem;color:#888;border-top:1px solid #e5e7eb}.site-footer a{color:#6366f1;text-decoration:none;font-weight:500}.site-footer a:hover{opacity:.75;text-decoration:underline}.site-footer .heart{color:#e55;margin:0 2px}</style><footer class='site-footer'>Twórca strony: <a href='https://tel-service.pl/' target='_blank' rel='noopener'>TEL-SERVICE</a> <span class='heart'>♥</span> przez V</footer></body>
+<script src="/filters-ui.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="/map-view.js"></script>
+<script src="/app.js"></script>
+</body>
 </html>

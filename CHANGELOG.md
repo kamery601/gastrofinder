@@ -1,5 +1,25 @@
 # Changelog
 
+## Etap 4 – filtry, mapa i PWA
+
+### 4A Filtry UX
+- max odległość (500 m – 5 km)
+- min. ocena (3.5+, 4.0+, 4.5+)
+- tylko otwarte
+- ukryj lokale bez danych o godzinach
+- typ lokalu: pizza, kebab, kawiarnia, restauracja, bar
+
+### 4B Mapa
+- Leaflet + OpenStreetMap
+- pinezki zielone / czerwone / szare
+- popup: nazwa, status, ocena, odległość, link Google Maps
+- marker użytkownika przy wyszukiwaniu GPS
+
+### 4C PWA
+- `manifest.json`
+- ikony 192 / 512 / maskable
+- service worker (cache powłoki aplikacji)
+
 ## Etap 3 – poprawki krytyczne i dopracowanie
 
 - naprawiono liczenie odległości (Google Places zwraca `latitude`/`longitude`, nie `lat`/`lng`)

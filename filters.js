@@ -1,5 +1,5 @@
 const LODGING = new Set(['lodging','hotel','motel','resort_hotel','extended_stay_hotel','bed_and_breakfast','hostel','guest_house','inn']);
-const ALLOWED_FOOD = new Set(['restaurant','cafe','bar','bakery','meal_takeaway','meal_delivery','coffee_shop','fast_food_restaurant','pizza_restaurant']);
+const ALLOWED_FOOD = new Set(['restaurant','cafe','bar','bakery','meal_takeaway','meal_delivery','coffee_shop','fast_food_restaurant','pizza_restaurant','kebab_shop']);
 const REJECTED_FOOD = new Set(['shopping_mall','movie_theater','tourist_attraction','museum','lodging','park','gym','school','university','spa','casino']);
 const CLUB_TYPES = new Set(['night_club','live_music_venue']);
 const NON_CLUB = new Set(['restaurant','cafe','bakery','fast_food_restaurant','meal_takeaway','meal_delivery','bar','pub','pizza_restaurant','burger_restaurant']);

@@ -22,7 +22,7 @@ function normalizePriceLevel(raw) {
 
 const SEARCH_CONFIG = {
   food: {
-    includedTypes: ['restaurant', 'cafe', 'bar', 'bakery', 'meal_takeaway', 'meal_delivery', 'coffee_shop', 'fast_food_restaurant', 'pizza_restaurant'],
+    includedTypes: ['restaurant', 'cafe', 'bar', 'bakery', 'meal_takeaway', 'meal_delivery', 'coffee_shop', 'fast_food_restaurant', 'pizza_restaurant', 'kebab_shop'],
     excludedTypes: ['lodging','hotel','motel','resort_hotel','extended_stay_hotel','bed_and_breakfast','hostel','guest_house','shopping_mall','movie_theater','tourist_attraction','museum','park','gym','school','university','spa','casino']
   },
   clubs: {
