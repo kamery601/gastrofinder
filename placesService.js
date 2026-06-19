@@ -68,8 +68,11 @@ async function getNearbyPlaces(center, mode, apiKey) {
     const seen = new Set();
     const results = [];
 
-    for (const type of config.includedTypes) {
-      const places = await fetchPlaces(center, type, config.excludedTypes, apiKey);
+    const batches = await Promise.all(
+      config.includedTypes.map(type => fetchPlaces(center, type, config.excludedTypes, apiKey))
+    );
+
+    for (const places of batches) {
       for (const place of places) {
         if (place.id && !seen.has(place.id)) {
           seen.add(place.id);

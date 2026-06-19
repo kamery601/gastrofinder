@@ -2,16 +2,27 @@ function toRadians(degrees) {
   return degrees * Math.PI / 180;
 }
 
+function readCoords(point) {
+  if (!point) return null;
+  const lat = typeof point.latitude === 'number' ? point.latitude : point.lat;
+  const lng = typeof point.longitude === 'number' ? point.longitude : point.lng;
+  if (typeof lat !== 'number' || typeof lng !== 'number') return null;
+  return { lat, lng };
+}
+
 function calculateDistanceKm(a, b) {
-  if (!a || !b || typeof a.latitude !== 'number' || typeof a.longitude !== 'number' || typeof b.lat !== 'number' || typeof b.lng !== 'number') {
+  if (!a || !b || typeof a.latitude !== 'number' || typeof a.longitude !== 'number') {
     return null;
   }
 
+  const target = readCoords(b);
+  if (!target) return null;
+
   const R = 6371; // km
-  const dLat = toRadians(b.lat - a.latitude);
-  const dLng = toRadians(b.lng - a.longitude);
+  const dLat = toRadians(target.lat - a.latitude);
+  const dLng = toRadians(target.lng - a.longitude);
   const lat1 = toRadians(a.latitude);
-  const lat2 = toRadians(b.lat);
+  const lat2 = toRadians(target.lat);
 
   const sinLat = Math.sin(dLat / 2);
   const sinLng = Math.sin(dLng / 2);

@@ -170,6 +170,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
   <div id="restaurantsList" class="restaurants-grid"></div>
 </div>
 
+<script src="/opening-hours.js"></script>
 <script>
 let allRestaurants = [];
 let currentSort = 'rating';
@@ -179,51 +180,8 @@ let simHour = new Date().getHours();
 let simMin  = new Date().getMinutes();
 const PRICE_MAP = {PRICE_LEVEL_FREE:0,PRICE_LEVEL_INEXPENSIVE:1,PRICE_LEVEL_MODERATE:2,PRICE_LEVEL_EXPENSIVE:3,PRICE_LEVEL_VERY_EXPENSIVE:4};
 
-// Funkcja sprawdzająca otwarcie dla wybranej godziny
 function checkOpenAtTime(place, hour, minute) {
-  const dayOfWeek = new Date().getDay(); // 0=niedziela, 1=poniedziałek, ..., 6=sobota
-  const dayIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Konwersja: 0->6, 1->0, ..., 6->5 (dla API)
-  const minutes = hour * 60 + minute;
-  
-  // Jeśli dostępne currentOpeningHours.periods
-  const cur = place.currentOpeningHours;
-  if (cur && cur.periods && Array.isArray(cur.periods)) {
-    for (const period of cur.periods) {
-      if (period.open && period.close) {
-        const open = period.open.day === dayIndex;
-        const close = period.close.day === dayIndex;
-        if (open && close) {
-          const openMin = (period.open.hour || 0) * 60 + (period.open.minute || 0);
-          const closeMin = (period.close.hour || 0) * 60 + (period.close.minute || 0);
-          if (minutes >= openMin && minutes < closeMin) return true;
-        } else if (open && !close && minutes >= ((period.open.hour || 0) * 60 + (period.open.minute || 0))) {
-          return true; // Otwarte do następnego dnia
-        }
-      }
-    }
-    return false;
-  }
-  
-  // Jeśli dostępne regularOpeningHours.periods
-  const reg = place.regularOpeningHours;
-  if (reg && reg.periods && Array.isArray(reg.periods)) {
-    for (const period of reg.periods) {
-      if (period.open && period.close && period.open.day === dayIndex) {
-        const openMin = (period.open.hour || 0) * 60 + (period.open.minute || 0);
-        const closeMin = (period.close.hour || 0) * 60 + (period.close.minute || 0);
-        if (minutes >= openMin && minutes < closeMin) return true;
-      }
-    }
-    return false;
-  }
-  
-  // Jeśli dostępne currentOpeningHours.openNow
-  if (cur && cur.openNow !== undefined) {
-    return cur.openNow === true ? true : false;
-  }
-  
-  // Brak danych
-  return null;
+  return GastroOpeningHours.isOpenAt(place, hour, minute);
 }
 
 function resetToNow() {
@@ -284,8 +242,9 @@ function priceStr(lvl) {
   return ['','$','$$','$$$','$$$$'][lvl] || '–';
 }
 function formatDistance(km) {
-  if (km === null || km === undefined) return '–';
-  return km < 1 ? '<1 km' : km.toFixed(1) + ' km';
+  if (km === null || km === undefined) return '';
+  if (km < 1) return Math.max(50, Math.round(km * 1000)) + ' m';
+  return km.toFixed(1) + ' km';
 }
 function typeLabel(types, mode) {
   if (mode === 'clubs') {
@@ -529,7 +488,6 @@ async function startSearch() {
 
 function renderList() {
   const statusOrder = v => v === true ? 0 : v === false ? 2 : 1;
-  const calcScore = r => r.ratingCount > 0 ? r.rating * Math.log10(r.ratingCount + 10) : r.rating * Math.log10(10);
   
   const sorted = [...allRestaurants].sort((a, b) => {
     const aOpen = checkOpenAtTime(a, simHour, simMin);
@@ -579,8 +537,8 @@ function renderList() {
               ${r.rating ? r.rating.toFixed(1) : '–'}
               <span class="rating-count">${r.ratingCount ? '(' + r.ratingCount.toLocaleString('pl') + ')' : ''}</span>
             </div>
-            <div class="score-badge">${typeof r.score === 'number' ? r.score.toFixed(2) : '–'}</div>
-            <div class="distance-badge">${formatDistance(r.distanceKm)}</div>
+            <div class="score-badge" title="Ocena × log10(opinie + 10)">${typeof r.score === 'number' ? r.score.toFixed(2) : '–'}</div>
+            ${r.distanceKm != null ? '<div class="distance-badge">' + formatDistance(r.distanceKm) + '</div>' : ''}
           </div>
         </div>
         <div class="price-badge">${priceStr(r.priceLevel)}</div>

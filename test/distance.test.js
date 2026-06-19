@@ -16,6 +16,14 @@ test('calculateDistanceKm returns a positive number for nearby points', () => {
   assert.ok(distance < 3, 'Distance should be below 3 km for nearby points');
 });
 
+test('calculateDistanceKm accepts Google Places latitude/longitude format', () => {
+  const a = { latitude: 50.0619, longitude: 19.9366 };
+  const b = { latitude: 50.0680, longitude: 19.9440 };
+  const distance = calculateDistanceKm(a, b);
+  assert.ok(distance > 0, 'Distance should be positive');
+  assert.ok(distance < 3, 'Distance should be below 3 km for nearby points');
+});
+
 test('calculateDistanceKm returns null for invalid coordinates', () => {
   assert.strictEqual(calculateDistanceKm(null, null), null);
 });
