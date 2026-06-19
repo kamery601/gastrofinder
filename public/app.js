@@ -3,6 +3,7 @@ let currentSort = 'rating';
 let currentMode = 'food';
 let simHour = new Date().getHours();
 let simMin = new Date().getMinutes();
+let manualTime = false;
 let mapCenter = null;
 let userLocation = null;
 let filterControls = null;
@@ -20,12 +21,32 @@ function checkOpenAtTime(place, hour, minute) {
   return GastroOpeningHours.isOpenAt(place, hour, minute);
 }
 
-function resetToNow() {
+function getTimeStr() {
+  return String(simHour).padStart(2, '0') + ':' + String(simMin).padStart(2, '0');
+}
+
+function timeStatusLabel() {
+  return `godz. ${getTimeStr()}, ${manualTime ? 'wybrana ręcznie' : 'teraz'}`;
+}
+
+function applyCurrentTime() {
   const n = new Date();
   simHour = n.getHours();
   simMin = n.getMinutes();
-  document.getElementById('simulatedTime').value =
-    String(simHour).padStart(2, '0') + ':' + String(simMin).padStart(2, '0');
+  const input = document.getElementById('simulatedTime');
+  if (input) input.value = getTimeStr();
+}
+
+function refreshToNowIfAuto(options = {}) {
+  if (manualTime) return false;
+  applyCurrentTime();
+  if (options.render && allRestaurants.length) renderResults();
+  return true;
+}
+
+function resetToNow() {
+  manualTime = false;
+  applyCurrentTime();
   if (allRestaurants.length) renderResults();
 }
 
@@ -33,7 +54,25 @@ function onTimeChange() {
   const v = document.getElementById('simulatedTime').value;
   if (!v) return;
   [simHour, simMin] = v.split(':').map(Number);
+  manualTime = true;
   if (allRestaurants.length) renderResults();
+}
+
+function initTimeHandling() {
+  manualTime = false;
+  applyCurrentTime();
+
+  const timeInput = document.getElementById('simulatedTime');
+  if (timeInput) {
+    timeInput.addEventListener('change', onTimeChange);
+    timeInput.addEventListener('input', onTimeChange);
+  }
+
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) {
+      refreshToNowIfAuto({ render: true });
+    }
+  });
 }
 
 function setMode(mode) {
@@ -181,7 +220,6 @@ function updateStatusSummary() {
   const openCount = visible.filter((r) => checkOpenAtTime(r, simHour, simMin) === true).length;
   const closedCount = visible.filter((r) => checkOpenAtTime(r, simHour, simMin) === false).length;
   const unknownCount = visible.filter((r) => checkOpenAtTime(r, simHour, simMin) === null).length;
-  const timeStr = String(simHour).padStart(2, '0') + ':' + String(simMin).padStart(2, '0');
   const filterNote = visible.length !== allRestaurants.length
     ? ` · po filtrach: ${visible.length}/${allRestaurants.length}`
     : '';
@@ -190,7 +228,7 @@ function updateStatusSummary() {
     'done',
     `${allRestaurants.length} lokali${filterNote} — ${openCount} otwartych, ${closedCount} zamkniętych` +
       (unknownCount ? `, ${unknownCount} bez danych` : '') +
-      ` (godz. ${timeStr})`
+      ` (${timeStatusLabel()})`
   );
 }
 
@@ -353,6 +391,7 @@ async function startSearch() {
     return;
   }
 
+  refreshToNowIfAuto();
   document.getElementById('mainContent').style.display = 'block';
   userLocation = null;
   const modeLabels = { food: 'restauracji i barów', clubs: 'klubów i dyskotek', shops24: 'sklepów' };
@@ -434,7 +473,7 @@ function initApp() {
   mapView = GastroMap.createMapView('resultsMap');
   initFilters();
   initPwa();
-  resetToNow();
+  initTimeHandling();
 }
 
 window.startSearch = startSearch;
