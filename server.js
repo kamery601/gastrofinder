@@ -3,7 +3,7 @@ const express = require('express');
 const { geocodeAddress } = require('./geocode');
 const { getNearbyPlaces } = require('./placesService');
 const { filterPlaces } = require('./filters');
-const { ratingScore } = require('./ranking');
+const { calculateScore } = require('./ranking');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.GOOGLE_API_KEY;
@@ -28,7 +28,7 @@ async function respondWithNearbyPlaces(center, mode, res) {
   const places = await getNearbyPlaces(center, mode, API_KEY);
   const filteredPlaces = filterPlaces(places, mode).map(place => ({
     ...place,
-    score: Number(ratingScore(place).toFixed(2))
+    score: calculateScore(place)
   }));
   res.json({ places: filteredPlaces });
 }
