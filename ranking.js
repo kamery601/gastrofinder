@@ -1,6 +1,5 @@
-// Bayesian Average ranking - uczciwe porównanie lokali z różną liczbą opinii
-// Wzór: score = (v/(v+m)) * R + (m/(v+m)) * C
-// gdzie: R = ocena lokalu, v = liczba opinii, m = próg, C = średnia globalna
+// Bayesian Average ranking - uczciwe porownanie lokali z rozna liczba opinii
+// Wzor: score = (v/(v+m)) * R + (m/(v+m)) * C
 
 const GLOBAL_AVERAGE = 4.3;
 const MIN_VOTES = 100;
@@ -51,14 +50,12 @@ function openBonus(place) {
   return 0;
 }
 
+// "Najlepsze" - CZYSTA jakosc, bez dystansu (dystans ma wlasna zakladke "Najblizsze")
 function calculateScore(place) {
   const rating = typeof place.rating === 'number' ? place.rating : 0;
   const count = typeof place.userRatingCount === 'number' ? place.userRatingCount : 0;
   const base = bayesianScore(rating, count);
-  const distance = distanceScore(place);
-  const price = pricePenalty(place);
-  const open = openBonus(place);
-  return Number((base * 10 + distance * 1.5 + price + open).toFixed(2));
+  return Number((base * 10).toFixed(2));
 }
 
 function compareByDistance(a, b) {
