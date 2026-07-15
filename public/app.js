@@ -9,14 +9,6 @@ let userLocation = null;
 let filterControls = null;
 let mapView = null;
 
-const PRICE_MAP = {
-  PRICE_LEVEL_FREE: 0,
-  PRICE_LEVEL_INEXPENSIVE: 1,
-  PRICE_LEVEL_MODERATE: 2,
-  PRICE_LEVEL_EXPENSIVE: 3,
-  PRICE_LEVEL_VERY_EXPENSIVE: 4
-};
-
 function checkOpenAtTime(place, hour, minute) {
   return GastroOpeningHours.isOpenAt(place, hour, minute);
 }
@@ -166,7 +158,7 @@ function parsePlaces(places) {
     address: p.formattedAddress || '',
     rating: p.rating || 0,
     ratingCount: p.userRatingCount || 0,
-    priceLevel: PRICE_MAP[p.priceLevel] != null ? PRICE_MAP[p.priceLevel] : null,
+    priceLevel: typeof p.priceLevel === 'number' ? p.priceLevel : null,
     distanceKm: p.distanceKm ?? null,
     lat: p.location?.latitude ?? null,
     lng: p.location?.longitude ?? null,

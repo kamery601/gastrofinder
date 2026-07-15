@@ -2,7 +2,7 @@ const LODGING = new Set(['lodging','hotel','motel','resort_hotel','extended_stay
 const ALLOWED_FOOD = new Set(['restaurant','cafe','bar','bakery','meal_takeaway','meal_delivery','coffee_shop','fast_food_restaurant','pizza_restaurant','kebab_shop']);
 const REJECTED_FOOD = new Set(['shopping_mall','movie_theater','tourist_attraction','museum','lodging','park','gym','school','university','spa','casino']);
 const CLUB_TYPES = new Set(['night_club','live_music_venue']);
-const NON_CLUB = new Set(['restaurant','cafe','bakery','fast_food_restaurant','meal_takeaway','meal_delivery','bar','pub','pizza_restaurant','burger_restaurant']);
+const NON_CLUB = new Set(['restaurant','cafe','bakery','fast_food_restaurant','meal_takeaway','meal_delivery','pizza_restaurant','burger_restaurant']);
 const SHOP24_TYPES = new Set(['convenience_store','supermarket','grocery_store','gas_station','pharmacy']);
 const COMMON_EXCLUDE_NAMES = ['żabka','zabka','shell','bp stacja','orlen','circle k','biedronka','lidl','auchan','carrefour'];
 
@@ -14,12 +14,16 @@ function hasAnyType(types, set) {
   return types.some(t => set.has(t));
 }
 
+function isExcludedChainName(lowerName) {
+  return COMMON_EXCLUDE_NAMES.some(n => new RegExp(`(^|[^\\p{L}])${n}($|[^\\p{L}])`, 'u').test(lowerName));
+}
+
 function isFoodPlace(types, name) {
   const lowerName = normalizeText(name);
   if (!hasAnyType(types, ALLOWED_FOOD)) return false;
   if (hasAnyType(types, REJECTED_FOOD)) return false;
   if (hasAnyType(types, LODGING)) return false;
-  return !COMMON_EXCLUDE_NAMES.some(n => lowerName.includes(n));
+  return !isExcludedChainName(lowerName);
 }
 
 function isClubPlace(types) {
