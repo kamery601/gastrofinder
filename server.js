@@ -3,8 +3,8 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const { geocodeAddress } = require('./geocode');
 const { getNearbyPlaces } = require('./placesService');
-const { filterPlaces } = require('./filters');
-const { calculateScore } = require('./ranking');
+const { classifyAndSummarize } = require('./filters');
+const { rankingScore, reviewConfidence } = require('./ranking');
 const logger = require('./logger');
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -63,9 +63,13 @@ function respondWithError(res, e, context) {
 
 async function respondWithNearbyPlaces(center, mode, res) {
   const places = await getNearbyPlaces(center, mode, API_KEY);
-  const filteredPlaces = filterPlaces(places, mode).map(place => ({
+  const { accepted, rejectedReasons, total } = classifyAndSummarize(places, mode);
+  logger.info('filters', `${mode}: ${accepted.length}/${total} accepted`, { rejectedReasons });
+
+  const filteredPlaces = accepted.map(place => ({
     ...place,
-    score: calculateScore(place)
+    score: rankingScore(place),
+    reviewConfidence: reviewConfidence(place)
   }));
   res.json({ places: filteredPlaces });
 }

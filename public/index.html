@@ -87,6 +87,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
 .legend-dot.closed{background:var(--r400);}
 .legend-dot.unknown{background:var(--g400);}
 
+.location-context{margin-bottom:.75rem;font-size:.82rem;color:var(--g600);}
+.location-context #locationResultsFor{font-weight:600;color:var(--g800);}
+.location-context #locationDistanceNote{font-size:.78rem;color:var(--g600);margin-top:.1rem;}
+
 .status-bar{display:flex;align-items:center;gap:.6rem;margin-bottom:1rem;font-size:.82rem;color:var(--g600);}
 .status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
 .status-dot.searching{background:var(--a200);animation:pulse 1.5s infinite;}
@@ -121,7 +125,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
 .open-badge.open{background:var(--gr50);color:var(--gr800);}
 .open-badge.closed{background:var(--r50);color:var(--r800);}
 .open-badge.unknown{background:var(--g100);color:var(--g600);}
-.card-type{font-size:.73rem;color:var(--g600);font-weight:500;margin-bottom:.75rem;}
+.card-type{font-size:.73rem;color:var(--g600);font-weight:500;margin-bottom:.3rem;}
+.hours-detail{font-size:.73rem;color:var(--g600);font-weight:600;margin:0 0 .75rem;}
 .card-address{display:flex;align-items:flex-start;gap:.4rem;font-size:.8rem;color:var(--g600);text-decoration:none;margin-bottom:.85rem;line-height:1.4;}
 .card-address:hover{color:var(--a400);}
 .maps-btn{display:inline-flex;align-items:center;gap:.35rem;font-size:.78rem;font-weight:600;color:var(--t600);text-decoration:none;}
@@ -130,7 +135,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
 .rating-badge{display:flex;align-items:center;gap:.3rem;font-size:.85rem;font-weight:600;color:var(--a600);}
 .rating-count{font-size:.72rem;color:var(--g600);font-weight:400;}
 .distance-badge{font-size:.78rem;font-weight:600;color:var(--g600);}
+.low-sample-hint{font-size:.68rem;font-style:italic;color:var(--g600);}
 .price-badge{font-size:.82rem;font-weight:700;color:var(--g600);}
+.price-unknown{font-size:.68rem;font-weight:500;font-style:italic;color:var(--g600);}
+.sort-btn:disabled{opacity:.45;cursor:not-allowed;}
+.sort-btn:disabled:hover{border-color:var(--g200);color:var(--g600);}
 
 .empty-state{text-align:center;padding:3rem 1rem;color:var(--g600);grid-column:1/-1;border-radius:16px;}
 .empty-state h3{font-family:'Fraunces',serif;font-size:1.1rem;color:var(--g600);margin-bottom:.4rem;}
@@ -236,6 +245,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
     </div>
   </div>
 
+  <div class="location-context" id="locationContext" style="display:none">
+    <div id="locationResultsFor"></div>
+    <div id="locationDistanceNote"></div>
+  </div>
+
   <div class="status-bar">
     <div class="status-dot done" id="statusDot"></div>
     <span id="statusText">Gotowy</span>
@@ -248,6 +262,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
 <footer class="site-footer">Twórca strony: <a href="https://tel-service.pl/" target="_blank" rel="noopener">TEL-SERVICE</a> <span class="heart">♥</span> przez V</footer>
 
 <script src="/opening-hours.js"></script>
+<script src="/location-context.js"></script>
+<script src="/ranking-ui.js"></script>
 <script src="/filters-ui.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="/map-view.js"></script>

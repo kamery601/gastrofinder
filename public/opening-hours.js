@@ -60,5 +60,96 @@
     return null;
   }
 
-  global.GastroOpeningHours = { isOpenAt, getDayIndex };
+  function formatHHMM(absMinutes) {
+    const m = ((absMinutes % 1440) + 1440) % 1440;
+    return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+  }
+
+  function is24Hours(periods) {
+    return periods.some((p) => p.open && p.close &&
+      p.open.day === p.close.day &&
+      (p.open.hour || 0) === (p.close.hour || 0) &&
+      (p.open.minute || 0) === (p.close.minute || 0));
+  }
+
+  const NO_DETAILS = { closesAt: null, opensAt: null, minutesUntilChange: null };
+
+  /**
+   * Rich "otwarte do / otwiera o" details for a place, built on top of isOpenAt so
+   * the isOpen boolean always stays consistent with it. Never guesses: if a next
+   * change can't be determined from the periods we have, it falls back to the
+   * plain Otwarte/Zamknięte/Brak danych label instead of fabricating a time.
+   *
+   * @param {object} place
+   * @param {number} hour
+   * @param {number} minute
+   * @param {object} [options]
+   * @param {number} [options.dayIndex] - 0=Mon..6=Sun, defaults to today
+   * @param {boolean} [options.isManual] - true when the user picked the time by hand;
+   *   suppresses "Zamyka za X min" in favor of the absolute "Otwarte do HH:MM"
+   * @returns {{isOpen: boolean|null, label: string, closesAt: string|null, opensAt: string|null, minutesUntilChange: number|null, is24Hours: boolean}}
+   */
+  function getOpeningStatusDetails(place, hour, minute, options = {}) {
+    const dayIndex = options.dayIndex !== undefined ? options.dayIndex : getDayIndex();
+    const isManual = !!options.isManual;
+    const periods = resolveOpeningPeriods(place);
+
+    if (!periods) {
+      const openNow = isOpenAt(place, hour, minute, options);
+      if (openNow === null) return { isOpen: null, label: 'Brak danych', is24Hours: false, ...NO_DETAILS };
+      return { isOpen: openNow, label: openNow ? 'Otwarte' : 'Zamknięte', is24Hours: false, ...NO_DETAILS };
+    }
+
+    if (is24Hours(periods)) {
+      return { isOpen: true, label: 'Otwarte całą dobę', is24Hours: true, ...NO_DETAILS };
+    }
+
+    const isOpen = isOpenAt(place, hour, minute, options);
+    const nowAbs = dayIndex * 1440 + toMinuteOfDay(hour, minute);
+
+    let closesAtAbs = null;
+    let opensAtAbs = null;
+
+    for (const period of periods) {
+      if (!period.open || !period.close) continue;
+      const openAbsBase = period.open.day * 1440 + toMinuteOfDay(period.open.hour, period.open.minute);
+      let closeAbsBase = period.close.day * 1440 + toMinuteOfDay(period.close.hour, period.close.minute);
+      if (closeAbsBase <= openAbsBase) closeAbsBase += 7 * 1440;
+
+      // A period can apply to "this week", "last week" (started a few days ago and
+      // may still be running), or "next week" relative to `now` — check all three
+      // shifts so a period starting the previous day is still recognized.
+      for (const shift of [-7 * 1440, 0, 7 * 1440]) {
+        const openAbs = openAbsBase + shift;
+        const closeAbs = closeAbsBase + shift;
+
+        if (isOpen && nowAbs >= openAbs && nowAbs < closeAbs) {
+          if (closesAtAbs === null || closeAbs < closesAtAbs) closesAtAbs = closeAbs;
+        }
+        if (!isOpen && openAbs > nowAbs) {
+          if (opensAtAbs === null || openAbs < opensAtAbs) opensAtAbs = openAbs;
+        }
+      }
+    }
+
+    if (isOpen && closesAtAbs !== null) {
+      const minutesUntilChange = closesAtAbs - nowAbs;
+      const closesAt = formatHHMM(closesAtAbs);
+      const label = !isManual && minutesUntilChange <= 60
+        ? `Zamyka za ${minutesUntilChange} min`
+        : `Otwarte do ${closesAt}`;
+      return { isOpen: true, label, closesAt, opensAt: null, minutesUntilChange, is24Hours: false };
+    }
+
+    if (!isOpen && opensAtAbs !== null) {
+      const minutesUntilChange = opensAtAbs - nowAbs;
+      const opensAt = formatHHMM(opensAtAbs);
+      return { isOpen: false, label: `Otwiera o ${opensAt}`, closesAt: null, opensAt, minutesUntilChange, is24Hours: false };
+    }
+
+    // Couldn't determine the next change from the periods we have - don't guess.
+    return { isOpen, label: isOpen ? 'Otwarte' : 'Zamknięte', is24Hours: false, ...NO_DETAILS };
+  }
+
+  global.GastroOpeningHours = { isOpenAt, getDayIndex, getOpeningStatusDetails };
 })(window);

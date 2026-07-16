@@ -6,11 +6,16 @@ let simMin = new Date().getMinutes();
 let manualTime = false;
 let mapCenter = null;
 let userLocation = null;
+let locationContext = null;
 let filterControls = null;
 let mapView = null;
 
 function checkOpenAtTime(place, hour, minute) {
   return GastroOpeningHours.isOpenAt(place, hour, minute);
+}
+
+function getOpeningDetails(place) {
+  return GastroOpeningHours.getOpeningStatusDetails(place, simHour, simMin, { isManual: manualTime });
 }
 
 function getTimeStr() {
@@ -108,6 +113,23 @@ function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+function renderLocationContext(context) {
+  locationContext = context;
+  const box = document.getElementById('locationContext');
+  const resultsForEl = document.getElementById('locationResultsFor');
+  const distanceNoteEl = document.getElementById('locationDistanceNote');
+  const { resultsFor, distanceNote } = GastroLocation.formatMessages(context);
+
+  if (!resultsFor && !distanceNote) {
+    box.style.display = 'none';
+    return;
+  }
+  resultsForEl.textContent = resultsFor || '';
+  resultsForEl.style.display = resultsFor ? 'block' : 'none';
+  distanceNoteEl.textContent = distanceNote || '';
+  box.style.display = 'block';
+}
+
 function showEmptyState(title, message, variant) {
   document.getElementById('restaurantsList').innerHTML =
     `<div class="empty-state${variant ? ' ' + variant : ''}"><h3>${esc(title)}</h3><p>${esc(message)}</p></div>`;
@@ -149,12 +171,15 @@ function handleApiError(error, context) {
   const message = error?.message || 'Wystąpił nieoczekiwany błąd.';
   setStatus('error', message);
   showEmptyState('Błąd', message, 'is-error');
+  renderLocationContext(null);
   if (mapView) mapView.hide();
 }
 
 function priceStr(lvl) {
-  if (lvl === null || lvl === undefined) return '<span style="color:var(--g400)">–</span>';
-  return ['', '$', '$$', '$$$', '$$$$'][lvl] || '–';
+  if (lvl === null || lvl === undefined) {
+    return '<span class="price-unknown" title="Brak danych o cenie">Brak ceny</span>';
+  }
+  return ['', '$', '$$', '$$$', '$$$$'][lvl] || '';
 }
 
 function formatDistance(km) {
@@ -207,6 +232,7 @@ function parsePlaces(places) {
     lat: p.location?.latitude ?? null,
     lng: p.location?.longitude ?? null,
     score: p.score ?? null,
+    reviewConfidence: p.reviewConfidence || null,
     types: p.types || [],
     currentOpeningHours: p.currentOpeningHours || {},
     regularOpeningHours: p.regularOpeningHours || {},
@@ -228,16 +254,13 @@ function sortPlaces(places) {
     if (currentSort === 'distance') {
       return (a.distanceKm ?? 99999) - (b.distanceKm ?? 99999);
     }
-    if (currentSort === 'rating') {
-      return (b.score ?? 0) - (a.score ?? 0);
-    }
     if (currentSort === 'price') {
-      return (a.priceLevel ?? 99) - (b.priceLevel ?? 99);
+      return GastroRankingUI.compareByPrice(a, b);
     }
-
-    const valueA = a.priceLevel ? a.rating / Math.max(1, a.priceLevel) : a.rating * 0.55;
-    const valueB = b.priceLevel ? b.rating / Math.max(1, b.priceLevel) : b.rating * 0.55;
-    return valueB - valueA;
+    if (currentSort === 'value') {
+      return GastroRankingUI.compareByValue(a, b);
+    }
+    return (b.score ?? 0) - (a.score ?? 0);
   });
 }
 
@@ -251,18 +274,38 @@ function getVisiblePlaces() {
   return GastroFilters.applyFilters(sorted, filters, (place) => checkOpenAtTime(place, simHour, simMin));
 }
 
-function updateStatusSummary() {
-  const visible = getVisiblePlaces();
+function updatePriceSortAvailability(visible) {
+  const enabled = GastroRankingUI.priceSortEnabled(visible);
+  const tooltip = 'Za mało lokali ma wiarygodne dane o poziomie cen.';
+
+  ['price', 'value'].forEach((key) => {
+    const btn = document.getElementById('sort-' + key);
+    btn.disabled = !enabled;
+    btn.setAttribute('aria-disabled', String(!enabled));
+    btn.title = enabled ? '' : tooltip;
+  });
+
+  if (!enabled && (currentSort === 'price' || currentSort === 'value')) {
+    currentSort = 'rating';
+    ['rating', 'distance', 'price', 'value'].forEach((s) => {
+      document.getElementById('sort-' + s).className = 'sort-btn ' + (s === currentSort ? 'active' : 'inactive');
+    });
+    return true;
+  }
+  return false;
+}
+
+function updateStatusSummary(visible) {
   const openCount = visible.filter((r) => checkOpenAtTime(r, simHour, simMin) === true).length;
   const closedCount = visible.filter((r) => checkOpenAtTime(r, simHour, simMin) === false).length;
   const unknownCount = visible.filter((r) => checkOpenAtTime(r, simHour, simMin) === null).length;
-  const filterNote = visible.length !== allRestaurants.length
-    ? ` · po filtrach: ${visible.length}/${allRestaurants.length}`
-    : '';
+  const countLabel = visible.length !== allRestaurants.length
+    ? `Po filtrach: ${visible.length} z ${allRestaurants.length} lokali`
+    : `${allRestaurants.length} lokali`;
 
   setStatus(
     'done',
-    `${allRestaurants.length} lokali${filterNote} — ${openCount} otwartych, ${closedCount} zamkniętych` +
+    `${countLabel} — ${openCount} otwartych, ${closedCount} zamkniętych` +
       (unknownCount ? `, ${unknownCount} bez danych` : '') +
       ` (${timeStatusLabel()})`
   );
@@ -282,6 +325,8 @@ function renderList(visible) {
       const openStatus = checkOpenAtTime(r, simHour, simMin);
       const sc = openStatus === true ? 'open' : openStatus === false ? 'closed' : 'unknown';
       const lb = openStatus === true ? 'Otwarte' : openStatus === false ? 'Zamknięte' : 'Brak danych';
+      const details = getOpeningDetails(r);
+      const hasExtraDetail = details.closesAt || details.opensAt || details.is24Hours;
       return `<div class="resto-card is-${sc} mode-${currentMode}">
       <div class="card-body">
         <div class="card-top">
@@ -289,6 +334,7 @@ function renderList(visible) {
           <span class="open-badge ${sc}">${lb}</span>
         </div>
         <div class="card-type">${typeLabel(r.types, currentMode)}</div>
+        ${hasExtraDetail ? `<div class="hours-detail">${esc(details.label)}</div>` : ''}
         <a class="card-address" href="${r.mapsUrl}" target="_blank" rel="noopener">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
           ${esc(r.address)}
@@ -306,6 +352,7 @@ function renderList(visible) {
               ${r.rating ? r.rating.toFixed(1) : '–'}
               <span class="rating-count">${r.ratingCount ? '(' + r.ratingCount.toLocaleString('pl') + ')' : ''}</span>
             </div>
+            ${r.reviewConfidence === 'very_low' ? '<span class="low-sample-hint">Mało opinii</span>' : ''}
             ${r.distanceKm != null ? '<div class="distance-badge">' + formatDistance(r.distanceKm) + '</div>' : ''}
           </div>
         </div>
@@ -317,8 +364,10 @@ function renderList(visible) {
 }
 
 function renderResults() {
-  const visible = getVisiblePlaces();
-  updateStatusSummary();
+  let visible = getVisiblePlaces();
+  const switchedAwayFromPrice = updatePriceSortAvailability(visible);
+  if (switchedAwayFromPrice) visible = getVisiblePlaces();
+  updateStatusSummary(visible);
   renderList(visible);
 
   if (mapView && mapCenter) {
@@ -337,10 +386,17 @@ function handleNearbyResponse(near, center) {
   const places = near.places || [];
   if (!places.length) {
     setStatus('done', 'Brak wyników w okolicy.');
-    showEmptyState(
-      'Brak wyników',
-      'Nie znaleziono lokali w promieniu 3 km. Spróbuj wpisać większe miasto lub sąsiednią miejscowość.'
-    );
+    if (currentMode === 'food') {
+      showEmptyState(
+        'Brak wyników',
+        'Nie znaleziono pasujących lokali gastronomicznych w tej okolicy. Spróbuj wpisać większe miasto lub sąsiednią miejscowość.'
+      );
+    } else {
+      showEmptyState(
+        'Brak wyników',
+        'Nie znaleziono lokali w promieniu 3 km. Spróbuj wpisać większe miasto lub sąsiednią miejscowość.'
+      );
+    }
     if (mapView) mapView.hide();
     return false;
   }
@@ -358,6 +414,7 @@ async function useMyLocation() {
   if (!navigator.geolocation) {
     setLoading(false);
     setStatus('error', 'Brak wsparcia dla geolokalizacji');
+    renderLocationContext(null);
     showEmptyState('Geolokalizacja niedostępna', 'Twoja przeglądarka nie wspiera funkcji lokalizacji.', 'is-error');
     return;
   }
@@ -380,6 +437,7 @@ async function useMyLocation() {
     const lat = position.coords.latitude;
     const lng = position.coords.longitude;
     userLocation = { lat, lng };
+    renderLocationContext(GastroLocation.buildFromGps(lat, lng));
 
     const near = await fetchJson(
       '/api/nearby-location?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng) + '&mode=' + currentMode
@@ -398,6 +456,7 @@ async function useMyLocation() {
       };
       const [title, detail] = geoMessages[error.code];
       setStatus('error', title);
+      renderLocationContext(null);
       document.getElementById('restaurantsList').innerHTML =
         `<div class="empty-state is-error"><h3>${esc(title)}</h3><p>${esc(detail)}</p>` +
         '<p style="font-size:0.85rem;color:var(--g400);margin-top:1rem;">Alternatywa: wyszukaj manualnie miasto w polu powyżej.</p></div>';
@@ -425,6 +484,7 @@ async function startSearch() {
   try {
     const geo = await fetchJson('/api/geocode?address=' + encodeURIComponent(city + ', Polska'));
     if (!geo.results?.length) {
+      renderLocationContext(null);
       setStatus('error', 'Nie znaleziono miasta.');
       showEmptyState('Nie znaleziono', 'Sprawdź pisownię nazwy miasta.');
       return;
@@ -432,6 +492,7 @@ async function startSearch() {
 
     const loc = geo.results[0].geometry.location;
     mapCenter = { lat: loc.lat, lng: loc.lng };
+    renderLocationContext(GastroLocation.buildFromGeocode(city, geo.results[0]));
     const near = await fetchJson('/api/nearby?location=' + loc.lat + ',' + loc.lng + '&mode=' + currentMode);
 
     handleNearbyResponse(near, mapCenter);

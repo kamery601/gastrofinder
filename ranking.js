@@ -47,6 +47,47 @@ function calculateScore(place) {
   return Number((base * 10).toFixed(2));
 }
 
+const LOW_RATING_THRESHOLD = 3.0;
+const LOW_RATING_MIN_VOTES = 10;
+
+/**
+ * Classifies how much a rating can be trusted, purely from sample size — never
+ * used to remove a place (a 2-review place may be the only real option in a small
+ * town), only to (a) let Bayesian pull low-sample scores toward the average, and
+ * (b) let the UI show a discreet "Mało opinii" hint for very small samples.
+ * @returns {'no_data'|'very_low'|'low'|'established'}
+ */
+function reviewConfidence(place) {
+  const rating = typeof place.rating === 'number' ? place.rating : null;
+  const count = typeof place.userRatingCount === 'number' ? place.userRatingCount : 0;
+  if (rating === null || rating === 0 || count === 0) return 'no_data';
+  if (count < 10) return 'very_low';
+  if (count < 50) return 'low';
+  return 'established';
+}
+
+/**
+ * A place with a reliably-bad rating (below 3.0, backed by enough votes that it's
+ * not just noise) should sink to the bottom of its "Najlepsze" group — but never
+ * be removed: it can still be the closest option, so "Najbliższe" is unaffected.
+ */
+function isUnreliablyLowRated(place) {
+  const rating = typeof place.rating === 'number' ? place.rating : null;
+  const count = typeof place.userRatingCount === 'number' ? place.userRatingCount : 0;
+  return rating !== null && rating < LOW_RATING_THRESHOLD && count >= LOW_RATING_MIN_VOTES;
+}
+
+/**
+ * The score actually used to order the "Najlepsze" sort: calculateScore, except
+ * reliably-low-rated places are pushed to a sentinel range below every genuine
+ * Bayesian score so they always sort last within their open/closed/unknown group.
+ * @returns {number}
+ */
+function rankingScore(place) {
+  const base = calculateScore(place);
+  return isUnreliablyLowRated(place) ? base - 1000 : base;
+}
+
 function compareByDistance(a, b) {
   const aDist = typeof a.distanceKm === 'number' ? a.distanceKm : Number.MAX_SAFE_INTEGER;
   const bDist = typeof b.distanceKm === 'number' ? b.distanceKm : Number.MAX_SAFE_INTEGER;
@@ -67,4 +108,13 @@ function comparePlaces(a, b, sortKey = 'rating') {
   return calculateScore(b) - calculateScore(a);
 }
 
-module.exports = { bayesianScore, valueScore, calculateScore, comparePlaces, compareByDistance };
+module.exports = {
+  bayesianScore,
+  valueScore,
+  calculateScore,
+  comparePlaces,
+  compareByDistance,
+  reviewConfidence,
+  isUnreliablyLowRated,
+  rankingScore
+};
