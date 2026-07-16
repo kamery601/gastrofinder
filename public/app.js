@@ -108,6 +108,50 @@ function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+function showEmptyState(title, message, variant) {
+  document.getElementById('restaurantsList').innerHTML =
+    `<div class="empty-state${variant ? ' ' + variant : ''}"><h3>${esc(title)}</h3><p>${esc(message)}</p></div>`;
+}
+
+/**
+ * Fetches JSON from our own API and normalizes every failure mode (network error,
+ * non-2xx status, malformed JSON, or a { error } payload) into a single thrown
+ * Error with a message already safe to show the user.
+ */
+async function fetchJson(url) {
+  let res;
+  try {
+    res = await fetch(url);
+  } catch (e) {
+    throw new Error('Brak połączenia z serwerem. Sprawdź internet i spróbuj ponownie.');
+  }
+
+  let json;
+  try {
+    json = await res.json();
+  } catch (e) {
+    throw new Error('Otrzymano nieprawidłową odpowiedź serwera.');
+  }
+
+  if (!res.ok || json.error) {
+    throw new Error(json.error || `Błąd serwera (${res.status})`);
+  }
+  return json;
+}
+
+/**
+ * Central handler for any failed API call: logs the technical detail to the
+ * console for debugging, and shows a single, consistent, Polish-language error
+ * state to the user (never a raw stack trace or "undefined").
+ */
+function handleApiError(error, context) {
+  console.error(`[GastroFinder] ${context}:`, error);
+  const message = error?.message || 'Wystąpił nieoczekiwany błąd.';
+  setStatus('error', message);
+  showEmptyState('Błąd', message, 'is-error');
+  if (mapView) mapView.hide();
+}
+
 function priceStr(lvl) {
   if (lvl === null || lvl === undefined) return '<span style="color:var(--g400)">–</span>';
   return ['', '$', '$$', '$$$', '$$$$'][lvl] || '–';
@@ -293,8 +337,10 @@ function handleNearbyResponse(near, center) {
   const places = near.places || [];
   if (!places.length) {
     setStatus('done', 'Brak wyników w okolicy.');
-    document.getElementById('restaurantsList').innerHTML =
-      '<div class="empty-state"><h3>Brak wyników</h3><p>Nie znaleziono lokali w promieniu 3 km.</p></div>';
+    showEmptyState(
+      'Brak wyników',
+      'Nie znaleziono lokali w promieniu 3 km. Spróbuj wpisać większe miasto lub sąsiednią miejscowość.'
+    );
     if (mapView) mapView.hide();
     return false;
   }
@@ -312,8 +358,7 @@ async function useMyLocation() {
   if (!navigator.geolocation) {
     setLoading(false);
     setStatus('error', 'Brak wsparcia dla geolokalizacji');
-    document.getElementById('restaurantsList').innerHTML =
-      '<div class="empty-state"><h3>Geolokalizacja niedostępna</h3><p>Twoja przeglądarka nie wspiera funkcji lokalizacji.</p></div>';
+    showEmptyState('Geolokalizacja niedostępna', 'Twoja przeglądarka nie wspiera funkcji lokalizacji.', 'is-error');
     return;
   }
 
@@ -336,43 +381,30 @@ async function useMyLocation() {
     const lng = position.coords.longitude;
     userLocation = { lat, lng };
 
-    const nearRes = await fetch(
+    const near = await fetchJson(
       '/api/nearby-location?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng) + '&mode=' + currentMode
     );
-    const near = await nearRes.json();
-
-    if (near.error) {
-      setStatus('error', 'Błąd wyszukiwania');
-      document.getElementById('restaurantsList').innerHTML =
-        '<div class="empty-state"><h3>Błąd API</h3><p>' + esc(near.error.message || JSON.stringify(near.error)) + '</p></div>';
-      return;
-    }
 
     setLoading(false);
     handleNearbyResponse(near, { lat, lng });
   } catch (error) {
     setLoading(false);
-    let errorMsg = 'Nie udało się pobrać lokalizacji';
-    let errorDetail = error.message || '';
 
-    if (error.code === 1) {
-      errorMsg = 'Odmowa dostępu do lokalizacji';
-      errorDetail = 'Zezwól na lokalizację w ustawieniach przeglądarki.';
-    } else if (error.code === 2) {
-      errorMsg = 'Pozycja niedostępna';
-      errorDetail = 'Nie można pobrać sygnału GPS. Spróbuj ponownie za chwilę.';
-    } else if (error.code === 3) {
-      errorMsg = 'Przekroczony czas oczekiwania';
-      errorDetail = 'Wyszukiwanie pozycji trwało zbyt długo. Spróbuj ponownie.';
+    if (error.code === 1 || error.code === 2 || error.code === 3) {
+      const geoMessages = {
+        1: ['Odmowa dostępu do lokalizacji', 'Zezwól na lokalizację w ustawieniach przeglądarki.'],
+        2: ['Pozycja niedostępna', 'Nie można pobrać sygnału GPS. Spróbuj ponownie za chwilę.'],
+        3: ['Przekroczony czas oczekiwania', 'Wyszukiwanie pozycji trwało zbyt długo. Spróbuj ponownie.']
+      };
+      const [title, detail] = geoMessages[error.code];
+      setStatus('error', title);
+      document.getElementById('restaurantsList').innerHTML =
+        `<div class="empty-state is-error"><h3>${esc(title)}</h3><p>${esc(detail)}</p>` +
+        '<p style="font-size:0.85rem;color:var(--g400);margin-top:1rem;">Alternatywa: wyszukaj manualnie miasto w polu powyżej.</p></div>';
+      return;
     }
 
-    setStatus('error', errorMsg);
-    document.getElementById('restaurantsList').innerHTML =
-      '<div class="empty-state"><h3>' +
-      errorMsg +
-      '</h3><p>' +
-      esc(errorDetail) +
-      '</p><p style="font-size:0.85rem;color:var(--g400);margin-top:1rem;">Alternatywa: wyszukaj manualnie miasto w polu powyżej.</p></div>';
+    handleApiError(error, 'useMyLocation');
   }
 }
 
@@ -391,32 +423,20 @@ async function startSearch() {
   setLoading(true);
 
   try {
-    const geoRes = await fetch('/api/geocode?address=' + encodeURIComponent(city + ', Polska'));
-    const geo = await geoRes.json();
+    const geo = await fetchJson('/api/geocode?address=' + encodeURIComponent(city + ', Polska'));
     if (!geo.results?.length) {
       setStatus('error', 'Nie znaleziono miasta.');
-      document.getElementById('restaurantsList').innerHTML =
-        '<div class="empty-state"><h3>Nie znaleziono</h3><p>Sprawdź pisownię nazwy miasta.</p></div>';
+      showEmptyState('Nie znaleziono', 'Sprawdź pisownię nazwy miasta.');
       return;
     }
 
     const loc = geo.results[0].geometry.location;
     mapCenter = { lat: loc.lat, lng: loc.lng };
-    const nearRes = await fetch('/api/nearby?location=' + loc.lat + ',' + loc.lng + '&mode=' + currentMode);
-    const near = await nearRes.json();
-
-    if (near.error) {
-      setStatus('error', 'Błąd API: ' + (near.error.message || ''));
-      document.getElementById('restaurantsList').innerHTML =
-        '<div class="empty-state"><h3>Błąd API</h3><p>' + esc(near.error.message || '') + '</p></div>';
-      return;
-    }
+    const near = await fetchJson('/api/nearby?location=' + loc.lat + ',' + loc.lng + '&mode=' + currentMode);
 
     handleNearbyResponse(near, mapCenter);
   } catch (e) {
-    setStatus('error', 'Błąd: ' + e.message);
-    document.getElementById('restaurantsList').innerHTML =
-      '<div class="empty-state"><h3>Błąd</h3><p>' + esc(e.message) + '</p></div>';
+    handleApiError(e, 'startSearch');
   } finally {
     setLoading(false);
   }

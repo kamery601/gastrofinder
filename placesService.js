@@ -1,9 +1,11 @@
 const fetch = require('node-fetch');
 const { cached } = require('./cache');
 const { calculateDistanceKm } = require('./distance');
+const logger = require('./logger');
 
 const FIELD_MASK = 'places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.priceLevel,places.types,places.currentOpeningHours,places.regularOpeningHours,places.businessStatus,places.googleMapsUri,places.location';
 
+const EXTERNAL_TIMEOUT_MS = 8000;
 
 const PRICE_LEVEL_MAP = {
   PRICE_LEVEL_UNSPECIFIED: null,
@@ -13,6 +15,13 @@ const PRICE_LEVEL_MAP = {
   PRICE_LEVEL_EXPENSIVE: 3,
   PRICE_LEVEL_VERY_EXPENSIVE: 4
 };
+
+/**
+ * Google Places API (New) returns priceLevel as a string enum (e.g. "PRICE_LEVEL_MODERATE").
+ * Normalizes it to a plain 0-4 number (or null when unknown) for ranking/display.
+ * @param {string|number|null|undefined} raw
+ * @returns {number|null}
+ */
 function normalizePriceLevel(raw) {
   if (raw === null || raw === undefined) return null;
   if (typeof raw === "number") return raw;
@@ -35,6 +44,12 @@ const SEARCH_CONFIG = {
   }
 };
 
+/**
+ * Fetches places of a single Google type via searchNearby, with an 8s hard timeout.
+ * Throws on both Google API errors and network/timeout failures — caller decides
+ * whether a single failed type should sink the whole request (see getNearbyPlaces).
+ * @returns {Promise<object[]>}
+ */
 async function fetchPlaces(center, type, excludedTypes, apiKey) {
   const body = {
     includedTypes: [type],
@@ -44,34 +59,76 @@ async function fetchPlaces(center, type, excludedTypes, apiKey) {
   };
   if (excludedTypes.length) body.excludedTypes = excludedTypes;
 
-  const res = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Goog-Api-Key': apiKey,
-      'X-Goog-FieldMask': FIELD_MASK
-    },
-    body: JSON.stringify(body)
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), EXTERNAL_TIMEOUT_MS);
+
+  let res;
+  try {
+    res = await fetch('https://places.googleapis.com/v1/places:searchNearby', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': apiKey,
+        'X-Goog-FieldMask': FIELD_MASK
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal
+    });
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      throw new Error(`Przekroczono czas oczekiwania na Google Places API (typ: ${type})`);
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeout);
+  }
+
   const json = await res.json();
   if (json.error) {
+    const status = json.error.status || '';
+    if (res.status === 429 || status === 'RESOURCE_EXHAUSTED') {
+      throw new Error('QUOTA_EXCEEDED');
+    }
     throw new Error(json.error.message || JSON.stringify(json.error));
   }
   return json.places || [];
 }
 
+/**
+ * Fetches and merges places across all included types for a mode, deduplicated by place.id.
+ * Uses Promise.allSettled so that one failing type (timeout, quota, transient error)
+ * doesn't discard results from the other types — failures are logged and skipped.
+ * Throws only if EVERY type request failed (nothing to return).
+ * Results are cached for 10 minutes per (mode, rounded center).
+ * @returns {Promise<object[]>}
+ */
 async function getNearbyPlaces(center, mode, apiKey) {
   const config = SEARCH_CONFIG[mode] || SEARCH_CONFIG.food;
   const cacheKey = `nearby:${mode}:${center.latitude.toFixed(5)}:${center.longitude.toFixed(5)}`;
 
   return cached(cacheKey, 10 * 60 * 1000, async () => {
-    const seen = new Set();
-    const results = [];
-
-    const batches = await Promise.all(
+    const settled = await Promise.allSettled(
       config.includedTypes.map(type => fetchPlaces(center, type, config.excludedTypes, apiKey))
     );
 
+    const batches = [];
+    let quotaExceeded = false;
+    settled.forEach((outcome, i) => {
+      if (outcome.status === 'fulfilled') {
+        batches.push(outcome.value);
+      } else {
+        const reason = outcome.reason?.message || String(outcome.reason);
+        if (reason === 'QUOTA_EXCEEDED') quotaExceeded = true;
+        logger.warn('placesService', `fetchPlaces failed for type "${config.includedTypes[i]}"`, { reason });
+      }
+    });
+
+    if (batches.length === 0 && settled.length > 0) {
+      throw new Error(quotaExceeded ? 'QUOTA_EXCEEDED' : 'Nie udało się pobrać żadnych wyników z Google Places API');
+    }
+
+    const seen = new Set();
+    const results = [];
     for (const places of batches) {
       for (const place of places) {
         if (place.id && !seen.has(place.id)) {

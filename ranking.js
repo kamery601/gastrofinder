@@ -4,6 +4,13 @@
 const GLOBAL_AVERAGE = 4.3;
 const MIN_VOTES = 100;
 
+/**
+ * Bayesian Average: pulls a place's rating toward the global average when it
+ * has few votes, so a 5.0 from 2 reviews doesn't outrank a 4.6 from 2000.
+ * @param {number} rating - place's raw average rating (0-5)
+ * @param {number} count - number of ratings behind it
+ * @returns {number} adjusted score, same 0-5 scale as `rating`
+ */
 function bayesianScore(rating, count) {
   const R = typeof rating === 'number' ? rating : GLOBAL_AVERAGE;
   const v = typeof count === 'number' ? count : 0;
@@ -12,6 +19,11 @@ function bayesianScore(rating, count) {
   return (v / (v + m)) * R + (m / (v + m)) * C;
 }
 
+/**
+ * Quality-per-price: Bayesian score divided by price level, for the "Jakość/Cena" sort.
+ * Places with unknown price level get a flat penalty instead of a division.
+ * @returns {number}
+ */
 function valueScore(place) {
   const rating = typeof place.rating === 'number' ? place.rating : 0;
   const count = typeof place.userRatingCount === 'number' ? place.userRatingCount : 0;
@@ -22,35 +34,12 @@ function valueScore(place) {
   return base * 0.5;
 }
 
-function distanceScore(place) {
-  if (typeof place.distanceKm !== 'number') return 0;
-  const d = place.distanceKm;
-  if (d <= 0.5) return 10;
-  if (d <= 1.0) return 8;
-  if (d <= 2.0) return 5;
-  if (d <= 3.0) return 3;
-  return Math.max(0, 1 - (d - 3) * 0.3);
-}
-
-function pricePenalty(place) {
-  if (typeof place.priceLevel !== 'number') return 0;
-  switch (place.priceLevel) {
-    case 0: return 2;
-    case 1: return 1;
-    case 2: return 0;
-    case 3: return -1;
-    case 4: return -3;
-    default: return 0;
-  }
-}
-
-function openBonus(place) {
-  if (place.currentOpeningHours && place.currentOpeningHours.openNow === true) return 3;
-  if (place.currentOpeningHours && place.currentOpeningHours.openNow === false) return -2;
-  return 0;
-}
-
-// "Najlepsze" - CZYSTA jakosc, bez dystansu (dystans ma wlasna zakladke "Najblizsze")
+/**
+ * "Najlepsze" ranking - PURE quality (Bayesian Average only), deliberately excluding
+ * distance and open-now status: those have their own dedicated sort tabs
+ * ("Najbliższe" and the open/closed grouping in app.js's sortPlaces).
+ * @returns {number} score scaled to roughly 0-50 for readability
+ */
 function calculateScore(place) {
   const rating = typeof place.rating === 'number' ? place.rating : 0;
   const count = typeof place.userRatingCount === 'number' ? place.userRatingCount : 0;
@@ -64,6 +53,9 @@ function compareByDistance(a, b) {
   return aDist - bDist;
 }
 
+/**
+ * @param {string} sortKey - 'distance' | 'price' | 'value' | anything else falls back to quality
+ */
 function comparePlaces(a, b, sortKey = 'rating') {
   if (sortKey === 'distance') return compareByDistance(a, b);
   if (sortKey === 'price') {
@@ -75,4 +67,4 @@ function comparePlaces(a, b, sortKey = 'rating') {
   return calculateScore(b) - calculateScore(a);
 }
 
-module.exports = { bayesianScore, valueScore, distanceScore, pricePenalty, openBonus, calculateScore, comparePlaces, compareByDistance };
+module.exports = { bayesianScore, valueScore, calculateScore, comparePlaces, compareByDistance };

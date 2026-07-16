@@ -39,6 +39,14 @@ function isShop24Place(types) {
   return true;
 }
 
+/**
+ * Filters raw Google Places results down to what a given mode should actually show:
+ * operational places only, matched against mode-specific type/name rules
+ * (see isFoodPlace / isClubPlace / isShop24Place).
+ * @param {object[]} places
+ * @param {'food'|'clubs'|'shops24'} mode
+ * @returns {object[]}
+ */
 function filterPlaces(places, mode) {
   return places.filter(place => {
     if (place.businessStatus !== 'OPERATIONAL') return false;

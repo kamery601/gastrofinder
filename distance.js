@@ -10,6 +10,12 @@ function readCoords(point) {
   return { lat, lng };
 }
 
+/**
+ * Haversine great-circle distance between two lat/lng points, in kilometers.
+ * Accepts Google Places' `{latitude, longitude}` shape for `a`, and either that
+ * or `{lat, lng}` for `b`.
+ * @returns {number|null} distance rounded to 1 decimal, or null if either point is invalid
+ */
 function calculateDistanceKm(a, b) {
   if (!a || !b || typeof a.latitude !== 'number' || typeof a.longitude !== 'number') {
     return null;
