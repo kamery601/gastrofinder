@@ -184,3 +184,113 @@ test('details: only openNow (no periods) falls back to plain Otwarte/Zamknięte,
   assert.strictEqual(details.label, 'Otwarte');
   assert.strictEqual(details.closesAt, null);
 });
+
+// --- Production regression: "Białka Pizza Express | Dowozimy do 01:00!" ----
+// Confirmed bug: currentOpeningHours.nextCloseTime + valid periods existed, but
+// the card only ever showed the plain "Otwarte" label. Root cause: the day-index
+// getOpeningStatusDetails/isOpenAt used by default (no explicit dayIndex) was
+// silently converted to a Monday-first 0-6 scheme, while period.open.day/
+// period.close.day are Google's raw Sunday-first values (0=Sunday) — every
+// real-clock ("now" mode) lookup compared two incompatible day numberings and
+// could both fail to find a next-change time AND, for day-varying schedules,
+// get the open/closed status itself wrong.
+
+function bialkaPizzaPlace() {
+  return {
+    currentOpeningHours: {
+      openNow: true,
+      nextCloseTime: '2026-07-16T23:00:00Z',
+      periods: [
+        {
+          open: { day: 4, hour: 16, minute: 0, date: { year: 2026, month: 7, day: 16 } },
+          close: { day: 5, hour: 1, minute: 0, date: { year: 2026, month: 7, day: 17 } }
+        }
+      ]
+    },
+    regularOpeningHours: {
+      openNow: true,
+      periods: [
+        { open: { day: 4, hour: 16, minute: 0 }, close: { day: 5, hour: 1, minute: 0 } }
+      ]
+    }
+  };
+}
+
+test('details: Białka Pizza Express at 23:04 Europe/Warsaw shows "Otwarte do 01:00" (production regression)', () => {
+  const place = bialkaPizzaPlace();
+  const details = getOpeningStatusDetails(place, 23, 4, {
+    now: '2026-07-16T21:04:00Z',
+    timeZone: 'Europe/Warsaw'
+  });
+  assert.strictEqual(details.isOpen, true);
+  assert.strictEqual(details.label, 'Otwarte do 01:00');
+  assert.strictEqual(details.closesAt, '01:00');
+});
+
+test('details: within 60 min of nextCloseTime shows "Zamyka za X min"', () => {
+  const place = bialkaPizzaPlace();
+  const details = getOpeningStatusDetails(place, 0, 0, {
+    now: '2026-07-16T22:35:00Z',
+    timeZone: 'Europe/Warsaw'
+  });
+  assert.strictEqual(details.isOpen, true);
+  assert.strictEqual(details.label, 'Zamyka za 25 min');
+  assert.strictEqual(details.minutesUntilChange, 25);
+});
+
+test('details: manual time mode ignores nextCloseTime entirely and reads regularOpeningHours.periods', () => {
+  const place = bialkaPizzaPlace();
+  const details = getOpeningStatusDetails(place, 23, 4, {
+    isManual: true,
+    // Deliberately different from nextCloseTime's real close (would be wrong if used)
+    now: '2020-01-01T00:00:00Z',
+    timeZone: 'Europe/Warsaw',
+    dayIndex: 4 // Thursday, Google/Sunday-first convention
+  });
+  assert.strictEqual(details.isOpen, true);
+  assert.strictEqual(details.label, 'Otwarte do 01:00');
+  assert.strictEqual(details.closesAt, '01:00');
+});
+
+test('details: a truncated currentOpeningHours entry must not shadow a valid regularOpeningHours period', () => {
+  const place = {
+    currentOpeningHours: {
+      openNow: true,
+      periods: [
+        {
+          open: { day: 4, hour: 16, minute: 0, truncated: true },
+          close: { day: 5, hour: 1, minute: 0 }
+        }
+      ]
+    },
+    regularOpeningHours: {
+      openNow: true,
+      periods: [
+        { open: { day: 4, hour: 16, minute: 0 }, close: { day: 5, hour: 1, minute: 0 } }
+      ]
+    }
+  };
+
+  const nowDetails = getOpeningStatusDetails(place, 23, 4, { dayIndex: 4 });
+  assert.strictEqual(nowDetails.isOpen, true);
+  assert.strictEqual(nowDetails.label, 'Otwarte do 01:00');
+
+  const manualDetails = getOpeningStatusDetails(place, 23, 4, { isManual: true, dayIndex: 4 });
+  assert.strictEqual(manualDetails.isOpen, true);
+  assert.strictEqual(manualDetails.label, 'Otwarte do 01:00');
+});
+
+test('details: day 6 (Saturday) -> day 0 (Sunday) crossover resolves correctly with the fixed day index', () => {
+  const place = {
+    currentOpeningHours: {
+      periods: [{ open: { day: 6, hour: 22, minute: 0 }, close: { day: 0, hour: 3, minute: 0 } }]
+    }
+  };
+  const stillSaturdayNight = getOpeningStatusDetails(place, 23, 0, { dayIndex: 6 });
+  assert.strictEqual(stillSaturdayNight.isOpen, true);
+  assert.strictEqual(stillSaturdayNight.closesAt, '03:00');
+
+  const earlySunday = getOpeningStatusDetails(place, 1, 30, { dayIndex: 0 });
+  assert.strictEqual(earlySunday.isOpen, true);
+  assert.strictEqual(earlySunday.closesAt, '03:00');
+});
