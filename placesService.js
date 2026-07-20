@@ -44,18 +44,33 @@ const SEARCH_CONFIG = {
   }
 };
 
+// searchNearby returns AT MOST 20 places per request, with no pagination. In a
+// dense area (Zakopane, Kraków) a single POPULARITY-ranked query per type
+// systematically hides new/small places that don't crack the type's top-20 by
+// review volume (confirmed with "Vamos Pizza Express": absent under POPULARITY,
+// present under DISTANCE). Querying each type under BOTH rankings and merging
+// by place.id recovers them — popular-but-farther AND nearby-but-new.
+const RANK_PREFERENCES = ['POPULARITY', 'DISTANCE'];
+
+// Safety cap on the merged result set. Calibrated ABOVE what the densest real
+// cities produce today (Kraków and Warszawa centre both plateau at 280 after
+// dedup; Zakopane 178), so it never truncates legitimate results now - it only
+// guards against a future Google limit increase or strategy change ballooning
+// a single search. The "capped" flag in the coverage log shows if it ever fires.
+const MAX_PLACES = 300;
+
 /**
  * Fetches places of a single Google type via searchNearby, with an 8s hard timeout.
  * Throws on both Google API errors and network/timeout failures — caller decides
- * whether a single failed type should sink the whole request (see getNearbyPlaces).
+ * whether a single failed request should sink the whole result (see getNearbyPlaces).
  * @returns {Promise<object[]>}
  */
-async function fetchPlaces(center, type, excludedTypes, apiKey) {
+async function fetchPlaces(center, type, excludedTypes, apiKey, rankPreference) {
   const body = {
     includedTypes: [type],
     maxResultCount: 20,
     locationRestriction: { circle: { center, radius: 3000.0 } },
-    rankPreference: 'POPULARITY'
+    rankPreference
   };
   if (excludedTypes.length) body.excludedTypes = excludedTypes;
 
@@ -107,19 +122,30 @@ async function getNearbyPlaces(center, mode, apiKey) {
   const cacheKey = `nearby:${mode}:${center.latitude.toFixed(5)}:${center.longitude.toFixed(5)}`;
 
   return cached(cacheKey, 10 * 60 * 1000, async () => {
+    const requests = [];
+    for (const type of config.includedTypes) {
+      for (const rankPreference of RANK_PREFERENCES) {
+        requests.push({ type, rankPreference });
+      }
+    }
+
     const settled = await Promise.allSettled(
-      config.includedTypes.map(type => fetchPlaces(center, type, config.excludedTypes, apiKey))
+      requests.map(({ type, rankPreference }) =>
+        fetchPlaces(center, type, config.excludedTypes, apiKey, rankPreference))
     );
 
     const batches = [];
+    const rawCountByRank = {};
     let quotaExceeded = false;
     settled.forEach((outcome, i) => {
       if (outcome.status === 'fulfilled') {
         batches.push(outcome.value);
+        const rank = requests[i].rankPreference;
+        rawCountByRank[rank] = (rawCountByRank[rank] || 0) + outcome.value.length;
       } else {
         const reason = outcome.reason?.message || String(outcome.reason);
         if (reason === 'QUOTA_EXCEEDED') quotaExceeded = true;
-        logger.warn('placesService', `fetchPlaces failed for type "${config.includedTypes[i]}"`, { reason });
+        logger.warn('placesService', `fetchPlaces failed for type "${requests[i].type}" (${requests[i].rankPreference})`, { reason });
       }
     });
 
@@ -142,6 +168,20 @@ async function getNearbyPlaces(center, mode, apiKey) {
         }
       }
     }
+
+    const totalRaw = Object.values(rawCountByRank).reduce((a, b) => a + b, 0);
+    const capped = results.length > MAX_PLACES;
+    if (capped) results.length = MAX_PLACES;
+
+    // Search-quality telemetry (logs only, never shown to users): how many
+    // records each ranking contributed, how many survived dedup, and whether
+    // the safety cap kicked in - the numbers to watch after the dual-rank change.
+    logger.info('placesService', `${mode}: search coverage`, {
+      byRank: rawCountByRank,
+      totalRaw,
+      afterDedup: results.length,
+      capped
+    });
 
     return results;
   });
