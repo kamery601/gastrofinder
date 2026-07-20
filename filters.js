@@ -17,8 +17,24 @@ const NON_FOOD_INSTITUTION_TYPES = new Set([
 // restaurant/cafe commonly carries one of these as a secondary type (galleries,
 // retail parks) and must not be rejected for it alone (see classifyFoodPlace).
 
-const FUEL_NAME_PATTERNS = ['stacja paliw', 'bp', 'orlen', 'shell', 'circle k', 'amic', 'moya'];
-const GROCERY_NAME_PATTERNS = ['kaufland', 'lewiatan', 'gama', 'sklep spożywczy', 'dyskont', 'supermarket', 'żabka', 'zabka', 'biedronka', 'lidl', 'auchan', 'carrefour'];
+// Word-boundary matched (Unicode-aware), so substrings inside longer words
+// never fire ("Molnár Vendéglő" is safe from "mol"). Deliberately NOT listed:
+// "tesco" - a verified real food POI ("Kürtőskalács Hajdúszoboszló-Tesco",
+// a chimney-cake stand at a Tesco) carries it in the name and must stay
+// visible (wariant B); big-box stores are caught by Google types instead.
+const FUEL_NAME_PATTERNS = [
+  // PL
+  'stacja paliw', 'bp', 'orlen', 'shell', 'circle k', 'amic', 'moya',
+  // SK / HU (verified fuel brands; their food corners like "Fresh Corner" have
+  // their own names without the brand word and still pass)
+  'mol', 'omv', 'slovnaft', 'benzínka', 'töltőállomás'
+];
+const GROCERY_NAME_PATTERNS = [
+  // PL
+  'kaufland', 'lewiatan', 'gama', 'sklep spożywczy', 'dyskont', 'supermarket', 'żabka', 'zabka', 'biedronka', 'lidl', 'auchan', 'carrefour',
+  // SK / HU (verified grocery chains + the generic words for a grocery shop)
+  'coop jednota', 'billa', 'cba', 'potraviny', 'élelmiszer', 'penny market'
+];
 
 const FOOD_DESCRIPTOR_WORDS = ['restauracja', 'restauracji', 'bistro', 'trattoria', 'pizzeria', 'karczma', 'kawiarnia', 'kawiarni', 'cafe', 'coffee', 'grill', 'bar', 'kuchnia', 'cukiernia', 'piekarnia', 'sushi', 'kebab', 'burger', 'gastropub'];
 const GENERIC_HOTEL_NAME_WORDS = ['hotel', 'hostel', 'motel', 'resort', 'pensjonat', 'apartamenty'];

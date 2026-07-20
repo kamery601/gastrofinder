@@ -157,3 +157,50 @@ test('classifyAndSummarize tallies rejection reasons in aggregate, without per-p
   assert.strictEqual(rejectedReasons.fuel_station, 1);
   assert.strictEqual(rejectedReasons.grocery_store, 2);
 });
+
+// --- International expansion (SK/HU) noise rules: each with positive AND ----
+// --- negative coverage, per the expansion spec ------------------------------
+
+test('SK: "MOL töltőállomás" mislabeled as cafe is rejected (fuel_station)', () => {
+  const p = place({ types: ['cafe'], displayName: { text: 'MOL töltőállomás' } });
+  const result = classifyFoodPlace(p);
+  assert.strictEqual(result.accepted, false);
+  assert.strictEqual(result.reason, 'fuel_station');
+});
+
+test('SK: "Slovnaft" and "OMV" as cafe are rejected', () => {
+  assert.strictEqual(classifyFoodPlace(place({ types: ['cafe'], displayName: { text: 'Slovnaft Poprad' } })).accepted, false);
+  assert.strictEqual(classifyFoodPlace(place({ types: ['cafe'], displayName: { text: 'OMV' } })).accepted, false);
+});
+
+test('HU: "Molnár Vendéglő" is NOT rejected - "mol" only matches as a whole word', () => {
+  const p = place({ types: ['restaurant'], displayName: { text: 'Molnár Vendéglő' } });
+  assert.strictEqual(classifyFoodPlace(p).accepted, true);
+});
+
+test('SK: fuel-station food corner with its own name ("Fresh Corner") stays visible (wariant B)', () => {
+  const p = place({ types: ['cafe'], displayName: { text: 'Fresh Corner' } });
+  assert.strictEqual(classifyFoodPlace(p).accepted, true);
+});
+
+test('SK: "COOP Jednota" and "Potraviny" mislabeled as bakery are rejected (grocery_store)', () => {
+  const jednota = classifyFoodPlace(place({ types: ['bakery'], displayName: { text: 'COOP Jednota Poprad' } }));
+  assert.strictEqual(jednota.accepted, false);
+  assert.strictEqual(jednota.reason, 'grocery_store');
+  assert.strictEqual(classifyFoodPlace(place({ types: ['bakery'], displayName: { text: 'Potraviny Anička' } })).accepted, false);
+});
+
+test('HU: "CBA Élelmiszer" and "Billa" mislabeled as bakery are rejected', () => {
+  assert.strictEqual(classifyFoodPlace(place({ types: ['bakery'], displayName: { text: 'CBA Élelmiszer' } })).accepted, false);
+  assert.strictEqual(classifyFoodPlace(place({ types: ['bakery'], displayName: { text: 'Billa' } })).accepted, false);
+});
+
+test('HU: real chimney-cake stand at a Tesco stays visible - "tesco" deliberately not blacklisted', () => {
+  const p = place({ types: ['cafe'], displayName: { text: 'Édes Kiss Kürtős - Kürtőskalács Hajdúszoboszló-Tesco' } });
+  assert.strictEqual(classifyFoodPlace(p).accepted, true);
+});
+
+test('SK/HU rules do not regress Polish filtering: Żabka still rejected, restauracja still accepted', () => {
+  assert.strictEqual(classifyFoodPlace(place({ types: ['restaurant'], displayName: { text: 'Żabka Express' } })).accepted, false);
+  assert.strictEqual(classifyFoodPlace(place({ types: ['restaurant'], displayName: { text: 'Restauracja Gallo Nero' } })).accepted, true);
+});
