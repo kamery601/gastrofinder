@@ -1,6 +1,7 @@
 let allRestaurants = [];
 let currentSort = 'rating';
 let currentMode = 'food';
+let currentCountry = 'PL';
 let simHour = new Date().getHours();
 let simMin = new Date().getMinutes();
 let manualTime = false;
@@ -70,6 +71,27 @@ function initTimeHandling() {
       refreshToNowIfAuto({ render: true });
     }
   });
+}
+
+function syncCountryUi() {
+  const config = GastroCountries.getCountry(currentCountry);
+  Object.keys(GastroCountries.COUNTRIES).forEach((code) => {
+    const btn = document.getElementById('country-' + code);
+    if (btn) btn.setAttribute('aria-pressed', String(code === currentCountry));
+  });
+  const input = document.getElementById('cityInput');
+  if (input) input.placeholder = config.searchPlaceholder;
+}
+
+function setCountry(code) {
+  const normalized = GastroCountries.saveCountry(code);
+  if (normalized === currentCountry) return;
+  currentCountry = normalized;
+  syncCountryUi();
+  // Same convention as setMode: if a city is already typed, re-run the search
+  // in the new country context so the change takes effect immediately.
+  const city = document.getElementById('cityInput').value.trim();
+  if (city) startSearch();
 }
 
 function setMode(mode) {
@@ -543,6 +565,8 @@ function initPwa() {
 }
 
 function initApp() {
+  currentCountry = GastroCountries.getSavedCountry();
+  syncCountryUi();
   mapView = GastroMap.createMapView('resultsMap');
   initFilters();
   initPwa();
@@ -552,6 +576,7 @@ function initApp() {
 window.startSearch = startSearch;
 window.useMyLocation = useMyLocation;
 window.setMode = setMode;
+window.setCountry = setCountry;
 window.setSort = setSort;
 window.resetToNow = resetToNow;
 window.onTimeChange = onTimeChange;

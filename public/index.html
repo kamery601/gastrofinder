@@ -37,6 +37,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
 
 .search-card{max-width:960px;margin:-3rem auto 0;padding:0 1.5rem;position:relative;z-index:10;}
 .search-box{background:white;border-radius:20px;padding:1.75rem;box-shadow:0 4px 32px rgba(65,36,2,.13);border:1px solid var(--a100);}
+.country-bar{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid var(--g100);}
+.country-btn{font-family:'DM Sans',sans-serif;font-size:.85rem;font-weight:600;padding:.5rem 1rem;border-radius:20px;cursor:pointer;border:1.5px solid var(--g200);background:white;color:var(--g600);transition:all .15s;}
+.country-btn[aria-pressed="true"]{background:var(--a900);color:var(--a100);border-color:var(--a900);}
+.country-btn[aria-pressed="false"]:hover{border-color:var(--a400);color:var(--a600);}
+.country-btn:focus-visible{outline:2px solid var(--a400);outline-offset:2px;}
 .search-row{display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;}
 .city-input{flex:1;min-width:220px;font-family:'DM Sans',sans-serif;font-size:1.05rem;padding:.85rem 1.1rem;border:1.5px solid var(--g200);border-radius:12px;color:var(--g800);outline:none;background:var(--g50);transition:border-color .2s;}
 .city-input:focus{border-color:var(--a200);background:white;}
@@ -161,7 +166,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
   .search-row{flex-direction:column;}
   .search-btn{width:100%;}
   #resultsMap{height:240px;}
-  .sort-btn,.mode-tab,.filter-chip,.time-reset{min-height:44px;padding-top:.7rem;padding-bottom:.7rem;}
+  .sort-btn,.mode-tab,.filter-chip,.time-reset,.country-btn{min-height:44px;padding-top:.7rem;padding-bottom:.7rem;}
   .maps-btn{min-height:44px;padding:.4rem 0;}
   .card-address{min-height:44px;}
 }
@@ -178,6 +183,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
 
 <div class="search-card">
   <div class="search-box">
+    <div class="country-bar" role="group" aria-label="Wybierz kraj wyszukiwania">
+      <button type="button" class="country-btn" id="country-PL" onclick="setCountry('PL')" aria-pressed="true">🇵🇱 Polska</button>
+      <button type="button" class="country-btn" id="country-SK" onclick="setCountry('SK')" aria-pressed="false">🇸🇰 Słowacja</button>
+      <button type="button" class="country-btn" id="country-HU" onclick="setCountry('HU')" aria-pressed="false">🇭🇺 Węgry</button>
+    </div>
     <div class="search-row">
       <input type="text" id="cityInput" class="city-input"
         placeholder="Wpisz miasto lub dzielnicę, np. Kraków, Kazimierz"
@@ -261,6 +271,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
 
 <footer class="site-footer">Twórca strony: <a href="https://tel-service.pl/" target="_blank" rel="noopener">TEL-SERVICE</a> <span class="heart">♥</span> przez V</footer>
 
+<script src="/countries.js"></script>
 <script src="/opening-hours.js"></script>
 <script src="/location-context.js"></script>
 <script src="/ranking-ui.js"></script>

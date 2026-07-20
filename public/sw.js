@@ -1,8 +1,9 @@
-const CACHE_NAME = 'gastrofinder-v2';
+const CACHE_NAME = 'gastrofinder-v3';
 const ASSETS = [
   '/',
   '/index.html',
   '/app.js',
+  '/countries.js',
   '/filters-ui.js',
   '/map-view.js',
   '/opening-hours.js',
@@ -14,10 +15,10 @@ const ASSETS = [
   '/icons/icon-maskable-512.png'
 ];
 
-// app.js and opening-hours.js carry the app's active logic (including the
-// opening-hours fix below) - they must be network-first so a fixed deploy
-// reaches users on their very next load, not only after a cache round-trip.
-const NETWORK_FIRST_PATHS = new Set(['/app.js', '/opening-hours.js']);
+// The HTML shell and the app's active logic must be network-first so a deploy
+// (like the country selector) reaches users on their very next load, not only
+// after a cache round-trip that could serve a stale interface.
+const NETWORK_FIRST_PATHS = new Set(['/', '/index.html', '/app.js', '/countries.js', '/opening-hours.js']);
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
