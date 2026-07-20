@@ -461,8 +461,10 @@ async function useMyLocation() {
     userLocation = { lat, lng };
     renderLocationContext(GastroLocation.buildFromGps(lat, lng));
 
+    // GPS is never blocked by the selected country: coordinates are the truth.
+    // The country param only scopes the cache/telemetry context.
     const near = await fetchJson(
-      '/api/nearby-location?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng) + '&mode=' + currentMode
+      '/api/nearby-location?lat=' + encodeURIComponent(lat) + '&lng=' + encodeURIComponent(lng) + '&mode=' + currentMode + '&country=' + currentCountry
     );
 
     setLoading(false);
@@ -504,18 +506,21 @@ async function startSearch() {
   setLoading(true);
 
   try {
-    const geo = await fetchJson('/api/geocode?address=' + encodeURIComponent(city + ', Polska'));
+    const countryLabel = GastroCountries.getCountry(currentCountry).label;
+    const geo = await fetchJson(
+      '/api/geocode?address=' + encodeURIComponent(city) + '&country=' + currentCountry
+    );
     if (!geo.results?.length) {
       renderLocationContext(null);
-      setStatus('error', 'Nie znaleziono miasta.');
-      showEmptyState('Nie znaleziono', 'Sprawdź pisownię nazwy miasta.');
+      setStatus('error', 'Nie znaleziono miejscowości.');
+      showEmptyState('Nie znaleziono', `Nie znaleziono „${city}" w kraju: ${countryLabel}. Sprawdź pisownię lub zmień kraj.`);
       return;
     }
 
     const loc = geo.results[0].geometry.location;
     mapCenter = { lat: loc.lat, lng: loc.lng };
     renderLocationContext(GastroLocation.buildFromGeocode(city, geo.results[0]));
-    const near = await fetchJson('/api/nearby?location=' + loc.lat + ',' + loc.lng + '&mode=' + currentMode);
+    const near = await fetchJson('/api/nearby?location=' + loc.lat + ',' + loc.lng + '&mode=' + currentMode + '&country=' + currentCountry);
 
     handleNearbyResponse(near, mapCenter);
   } catch (e) {

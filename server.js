@@ -6,6 +6,7 @@ const { getNearbyPlaces } = require('./placesService');
 const { classifyAndSummarize } = require('./filters');
 const { rankingScore, reviewConfidence } = require('./ranking');
 const logger = require('./logger');
+const { normalizeCountry } = require('./public/countries');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.GOOGLE_API_KEY;
@@ -61,10 +62,10 @@ function respondWithError(res, e, context) {
   return res.status(500).json({ error: e.message });
 }
 
-async function respondWithNearbyPlaces(center, mode, res) {
-  const places = await getNearbyPlaces(center, mode, API_KEY);
+async function respondWithNearbyPlaces(center, mode, country, res) {
+  const places = await getNearbyPlaces(center, mode, API_KEY, country);
   const { accepted, rejectedReasons, total } = classifyAndSummarize(places, mode);
-  logger.info('filters', `${mode}: ${accepted.length}/${total} accepted`, { rejectedReasons });
+  logger.info('filters', `${mode}: ${accepted.length}/${total} accepted`, { country, rejectedReasons });
 
   const filteredPlaces = accepted.map(place => ({
     ...place,
@@ -78,7 +79,7 @@ app.get('/api/geocode', async (req, res) => {
   if (!ensureApiKey(res)) return;
   if (!req.query.address || !String(req.query.address).trim()) return res.status(400).json({ error: 'Brak adresu' });
   try {
-    const json = await geocodeAddress(req.query.address, API_KEY);
+    const json = await geocodeAddress(req.query.address, API_KEY, normalizeCountry(req.query.country));
     res.json(json);
   } catch (e) {
     respondWithError(res, e, 'geocode');
@@ -94,7 +95,7 @@ app.get('/api/nearby', async (req, res) => {
     if (!areValidCoords(center.latitude, center.longitude)) {
       return res.status(400).json({ error: 'Nieprawidłowe współrzędne' });
     }
-    await respondWithNearbyPlaces(center, normalizeMode(req.query.mode), res);
+    await respondWithNearbyPlaces(center, normalizeMode(req.query.mode), normalizeCountry(req.query.country), res);
   } catch (e) {
     respondWithError(res, e, 'nearby');
   }
@@ -109,7 +110,7 @@ app.get('/api/nearby-location', async (req, res) => {
       return res.status(400).json({ error: 'Nieprawidłowe współrzędne' });
     }
     const center = { latitude: lat, longitude: lng };
-    await respondWithNearbyPlaces(center, normalizeMode(req.query.mode), res);
+    await respondWithNearbyPlaces(center, normalizeMode(req.query.mode), normalizeCountry(req.query.country), res);
   } catch (e) {
     respondWithError(res, e, 'nearby-location');
   }

@@ -117,9 +117,12 @@ async function fetchPlaces(center, type, excludedTypes, apiKey, rankPreference) 
  * Results are cached for 10 minutes per (mode, rounded center).
  * @returns {Promise<object[]>}
  */
-async function getNearbyPlaces(center, mode, apiKey) {
+async function getNearbyPlaces(center, mode, apiKey, country = 'PL') {
   const config = SEARCH_CONFIG[mode] || SEARCH_CONFIG.food;
-  const cacheKey = `nearby:${mode}:${center.latitude.toFixed(5)}:${center.longitude.toFixed(5)}`;
+  // Coordinates already imply the country for the Google query itself; the
+  // country in the key keeps results of different country contexts separate
+  // and lets the coverage telemetry attribute searches per country.
+  const cacheKey = `nearby:${country}:${mode}:${center.latitude.toFixed(5)}:${center.longitude.toFixed(5)}`;
 
   return cached(cacheKey, 10 * 60 * 1000, async () => {
     const requests = [];
@@ -177,6 +180,7 @@ async function getNearbyPlaces(center, mode, apiKey) {
     // records each ranking contributed, how many survived dedup, and whether
     // the safety cap kicked in - the numbers to watch after the dual-rank change.
     logger.info('placesService', `${mode}: search coverage`, {
+      country,
       byRank: rawCountByRank,
       totalRaw,
       afterDedup: results.length,
