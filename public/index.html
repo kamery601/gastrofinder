@@ -50,6 +50,15 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
 .search-btn:hover{background:var(--a600);}
 .search-btn:disabled{background:var(--g200);color:var(--g400);cursor:not-allowed;}
 
+.regions-bar,.places-bar{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--g100);align-items:center;}
+.regions-label{font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--g600);margin-right:.25rem;}
+.region-chip{font-family:'DM Sans',sans-serif;font-size:.8rem;font-weight:600;padding:.45rem .9rem;border-radius:20px;cursor:pointer;border:1.5px solid var(--g200);background:white;color:var(--g600);transition:all .15s;}
+.region-chip[aria-pressed="true"]{background:var(--a50);color:var(--a800);border-color:var(--a200);}
+.region-chip:hover{border-color:var(--a400);color:var(--a600);}
+.region-chip:focus-visible{outline:2px solid var(--a400);outline-offset:2px;}
+.place-chip{font-family:'DM Sans',sans-serif;font-size:.78rem;font-weight:600;padding:.42rem .85rem;border-radius:10px;cursor:pointer;border:1.5px solid var(--a100);background:var(--a50);color:var(--a800);transition:all .15s;}
+.place-chip:hover{background:var(--a100);border-color:var(--a200);}
+.place-chip:focus-visible{outline:2px solid var(--a400);outline-offset:2px;}
 .time-bar{display:flex;align-items:center;gap:.75rem;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--g100);flex-wrap:wrap;}
 .time-label{font-size:.78rem;font-weight:600;color:var(--g600);letter-spacing:.5px;text-transform:uppercase;}
 .time-input{font-family:'DM Sans',sans-serif;font-size:.88rem;padding:.4rem .75rem;border:1.5px solid var(--g200);border-radius:8px;background:var(--g50);color:var(--g800);outline:none;}
@@ -166,7 +175,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
   .search-row{flex-direction:column;}
   .search-btn{width:100%;}
   #resultsMap{height:240px;}
-  .sort-btn,.mode-tab,.filter-chip,.time-reset,.country-btn{min-height:44px;padding-top:.7rem;padding-bottom:.7rem;}
+  .sort-btn,.mode-tab,.filter-chip,.time-reset,.country-btn,.region-chip,.place-chip{min-height:44px;padding-top:.7rem;padding-bottom:.7rem;}
   .maps-btn{min-height:44px;padding:.4rem 0;}
   .card-address{min-height:44px;}
 }
@@ -196,6 +205,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
       <button class="search-btn" id="geoBtn" onclick="useMyLocation()">📍 Użyj mojej lokalizacji</button>
       <button class="search-btn" id="installBtn" style="display:none;background:var(--a800);">📲 Zainstaluj</button>
     </div>
+    <div class="regions-bar" id="regionsBar" role="group" aria-label="Regiony turystyczne" style="display:none"></div>
+    <div class="places-bar" id="placesBar" role="group" aria-label="Miejscowości w regionie" style="display:none"></div>
     <div class="time-bar">
       <span class="time-label">Czas:</span>
       <input type="time" id="simulatedTime" class="time-input"/>
@@ -272,6 +283,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
 <footer class="site-footer">Twórca strony: <a href="https://tel-service.pl/" target="_blank" rel="noopener">TEL-SERVICE</a> <span class="heart">♥</span> przez V</footer>
 
 <script src="/countries.js"></script>
+<script src="/regions.js"></script>
 <script src="/opening-hours.js"></script>
 <script src="/location-context.js"></script>
 <script src="/ranking-ui.js"></script>

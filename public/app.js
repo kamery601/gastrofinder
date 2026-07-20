@@ -73,6 +73,52 @@ function initTimeHandling() {
   });
 }
 
+let currentRegion = null;
+
+// Pure navigation layer: region/place chips only prefill and trigger the exact
+// search the user could have typed - they never touch the search engine.
+function renderRegionChips() {
+  const bar = document.getElementById('regionsBar');
+  const regions = GastroRegions.getRegions(currentCountry);
+  if (!regions.length) {
+    bar.style.display = 'none';
+    renderPlaceChips(null);
+    return;
+  }
+  bar.innerHTML = '<span class="regions-label">Regiony:</span>' + regions.map((r) =>
+    `<button type="button" class="region-chip" data-region-id="${r.id}" aria-pressed="${String(r.id === currentRegion)}">${r.emoji ? r.emoji + ' ' : ''}${esc(r.label)}</button>`
+  ).join('');
+  bar.style.display = 'flex';
+  bar.querySelectorAll('[data-region-id]').forEach((btn) => {
+    btn.addEventListener('click', () => selectRegion(btn.dataset.regionId));
+  });
+  renderPlaceChips(GastroRegions.getRegion(currentCountry, currentRegion));
+}
+
+function renderPlaceChips(region) {
+  const bar = document.getElementById('placesBar');
+  if (!region) {
+    bar.style.display = 'none';
+    bar.innerHTML = '';
+    return;
+  }
+  bar.innerHTML = region.places.map((p) =>
+    `<button type="button" class="place-chip" data-place-query="${esc(p.query)}">${esc(p.label)}</button>`
+  ).join('');
+  bar.style.display = 'flex';
+  bar.querySelectorAll('[data-place-query]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      document.getElementById('cityInput').value = btn.dataset.placeQuery;
+      startSearch();
+    });
+  });
+}
+
+function selectRegion(regionId) {
+  currentRegion = currentRegion === regionId ? null : regionId;
+  renderRegionChips();
+}
+
 function syncCountryUi() {
   const config = GastroCountries.getCountry(currentCountry);
   Object.keys(GastroCountries.COUNTRIES).forEach((code) => {
@@ -87,7 +133,9 @@ function setCountry(code) {
   const normalized = GastroCountries.saveCountry(code);
   if (normalized === currentCountry) return;
   currentCountry = normalized;
+  currentRegion = null;
   syncCountryUi();
+  renderRegionChips();
   // Same convention as setMode: if a city is already typed, re-run the search
   // in the new country context so the change takes effect immediately.
   const city = document.getElementById('cityInput').value.trim();
@@ -572,6 +620,7 @@ function initPwa() {
 function initApp() {
   currentCountry = GastroCountries.getSavedCountry();
   syncCountryUi();
+  renderRegionChips();
   mapView = GastroMap.createMapView('resultsMap');
   initFilters();
   initPwa();
