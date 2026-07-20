@@ -40,11 +40,16 @@ function buildGeocodeUrl(address, apiKey, countryCode) {
  * @param {string} [countryCode] - defaults to PL via normalizeCountry
  * @returns {Promise<{status: string, results: object[]}>}
  */
+/** Pure cache-key builder, exported for tests: country is part of the key. */
+function geocodeCacheKey(address, countryCode) {
+  return `geocode:${normalizeCountry(countryCode)}:${String(address || '').trim().toLowerCase()}`;
+}
+
 async function geocodeAddress(address, apiKey, countryCode) {
   const normalized = String(address || '').trim().toLowerCase();
   if (!normalized) throw new Error('Brak adresu do geokodowania');
   const country = normalizeCountry(countryCode);
-  const cacheKey = `geocode:${country}:${normalized}`;
+  const cacheKey = geocodeCacheKey(address, country);
 
   return cached(cacheKey, 10 * 60 * 1000, async () => {
     const url = buildGeocodeUrl(address, apiKey, country);
@@ -77,4 +82,4 @@ async function geocodeAddress(address, apiKey, countryCode) {
   });
 }
 
-module.exports = { geocodeAddress, buildGeocodeUrl };
+module.exports = { geocodeAddress, buildGeocodeUrl, geocodeCacheKey };

@@ -117,12 +117,17 @@ async function fetchPlaces(center, type, excludedTypes, apiKey, rankPreference) 
  * Results are cached for 10 minutes per (mode, rounded center).
  * @returns {Promise<object[]>}
  */
+// Coordinates already imply the country for the Google query itself; the
+// country in the key keeps results of different country contexts separate and
+// lets the coverage telemetry attribute searches per country. Pure and
+// exported for tests.
+function nearbyCacheKey(center, mode, country) {
+  return `nearby:${country}:${mode}:${center.latitude.toFixed(5)}:${center.longitude.toFixed(5)}`;
+}
+
 async function getNearbyPlaces(center, mode, apiKey, country = 'PL') {
   const config = SEARCH_CONFIG[mode] || SEARCH_CONFIG.food;
-  // Coordinates already imply the country for the Google query itself; the
-  // country in the key keeps results of different country contexts separate
-  // and lets the coverage telemetry attribute searches per country.
-  const cacheKey = `nearby:${country}:${mode}:${center.latitude.toFixed(5)}:${center.longitude.toFixed(5)}`;
+  const cacheKey = nearbyCacheKey(center, mode, country);
 
   return cached(cacheKey, 10 * 60 * 1000, async () => {
     const requests = [];
@@ -191,4 +196,4 @@ async function getNearbyPlaces(center, mode, apiKey, country = 'PL') {
   });
 }
 
-module.exports = { getNearbyPlaces };
+module.exports = { getNearbyPlaces, nearbyCacheKey };

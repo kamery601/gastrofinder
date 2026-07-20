@@ -294,3 +294,38 @@ test('details: day 6 (Saturday) -> day 0 (Sunday) crossover resolves correctly w
   assert.strictEqual(earlySunday.isOpen, true);
   assert.strictEqual(earlySunday.closesAt, '03:00');
 });
+
+// --- International expansion (SK/HU): hours logic is country-agnostic --------
+// PL, SK and HU all sit in the same Central European timezone today; these
+// tests pin down that venues shaped like real Slovak/Hungarian places (names
+// with diacritics, Google-style periods) flow through the exact same logic.
+
+test('details: Slovak venue (Koliba Štrbské Pleso) - evening hours with diacritics in data', () => {
+  const place = {
+    displayName: { text: 'Koliba Štrbské Pleso' },
+    currentOpeningHours: {
+      periods: [{ open: { day: 2, hour: 11, minute: 0 }, close: { day: 2, hour: 22, minute: 0 } }]
+    }
+  };
+  const details = getOpeningStatusDetails(place, 20, 0, { dayIndex: 2 });
+  assert.strictEqual(details.isOpen, true);
+  assert.strictEqual(details.label, 'Otwarte do 22:00');
+});
+
+test('details: Hungarian thermal-town venue (Hajdúszoboszló étterem) - midnight crossover', () => {
+  const place = {
+    displayName: { text: 'Hajdúszoboszlói Étterem és Söröző' },
+    currentOpeningHours: {
+      periods: [{ open: { day: 5, hour: 18, minute: 0 }, close: { day: 6, hour: 2, minute: 0 } }]
+    }
+  };
+  const details = getOpeningStatusDetails(place, 23, 30, { dayIndex: 5 });
+  assert.strictEqual(details.isOpen, true);
+  assert.strictEqual(details.closesAt, '02:00');
+});
+
+test('details: SK/HU venue without hours data still honestly reports Brak danych', () => {
+  const place = { displayName: { text: 'Reštaurácia Ždiar' }, currentOpeningHours: {}, regularOpeningHours: {} };
+  const details = getOpeningStatusDetails(place, 14, 0);
+  assert.strictEqual(details.label, 'Brak danych');
+});
