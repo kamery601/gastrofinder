@@ -5,9 +5,16 @@ const { geocodeAddress } = require('./geocode');
 const { getNearbyPlaces } = require('./placesService');
 const { classifyAndSummarize } = require('./filters');
 const { rankingScore, reviewConfidence } = require('./ranking');
+const crypto = require('crypto');
 const logger = require('./logger');
 const { normalizeCountry } = require('./public/countries');
+const { createCatalog } = require('./lib/catalog');
+const { isEnabled } = require('./lib/flags');
 const app = express();
+
+// Wired once at startup: Null catalog unless CATALOG_CORE_ENABLED + DATABASE_URL.
+const catalog = createCatalog();
+logger.info('server', `catalog: ${catalog.isAvailable() ? 'ENABLED' : 'disabled (live search only)'}`);
 const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.GOOGLE_API_KEY;
 const VALID_MODES = new Set(['food', 'clubs', 'shops24']);
@@ -62,8 +69,43 @@ function respondWithError(res, e, context) {
   return res.status(500).json({ error: e.message });
 }
 
+function costBucket(googleCalls) {
+  if (googleCalls === 0) return 'FREE_CACHE';
+  if (googleCalls <= 5) return 'LOW';
+  if (googleCalls <= 25) return 'MEDIUM';
+  return 'HIGH';
+}
+
+/**
+ * Fala 1 shadow write: records observed Place IDs AFTER the response has been
+ * sent - a user request is never slowed down or failed by the catalog. Errors
+ * degrade inside the catalog itself (see lib/catalog.js).
+ */
+async function shadowWriteObservations(places, country, telemetry) {
+  let inserted = 0;
+  let updated = 0;
+  let writeErrors = 0;
+  try {
+    const ids = places.map((p) => p.id).filter(Boolean);
+    ({ inserted, updated } = await catalog.upsertObservations(ids, country, new Date()));
+  } catch (e) {
+    writeErrors = 1;
+  }
+  logger.info('telemetry', 'search', {
+    ...telemetry,
+    catalogWrites: inserted + updated,
+    newPlaceIds: inserted,
+    existingPlaceIds: updated,
+    writeErrors
+  });
+}
+
 async function respondWithNearbyPlaces(center, mode, country, res) {
-  const places = await getNearbyPlaces(center, mode, API_KEY, country);
+  const searchRequestId = crypto.randomUUID();
+  const startedAt = Date.now();
+  const stats = {};
+
+  const places = await getNearbyPlaces(center, mode, API_KEY, country, stats);
   const { accepted, rejectedReasons, total } = classifyAndSummarize(places, mode);
   logger.info('filters', `${mode}: ${accepted.length}/${total} accepted`, { country, rejectedReasons });
 
@@ -73,6 +115,30 @@ async function respondWithNearbyPlaces(center, mode, country, res) {
     reviewConfidence: reviewConfidence(place)
   }));
   res.json({ places: filteredPlaces });
+
+  const telemetry = {
+    searchRequestId,
+    country,
+    mode,
+    googleGeocodeCalls: 0, // geocode is a separate endpoint with its own cache
+    googleNearbyCalls: stats.googleNearbyCalls ?? 0,
+    googleTextSearchCalls: 0,
+    googleDetailsCalls: 0,
+    cacheHits: stats.cacheHit ? 1 : 0,
+    raw: stats.raw ?? null,
+    unique: stats.unique ?? null,
+    capped: stats.capped ?? false,
+    durationMs: Date.now() - startedAt,
+    estimatedCostBucket: costBucket(stats.googleNearbyCalls ?? 0)
+  };
+
+  if (catalog.isAvailable() && isEnabled('CATALOG_WRITE_ENABLED')) {
+    // Fire-and-forget: runs after res.json, never in the response path.
+    shadowWriteObservations(accepted, country, telemetry).catch((e) =>
+      logger.warn('server', 'shadow write batch failed', { message: e.message }));
+  } else {
+    logger.info('telemetry', 'search', { ...telemetry, catalogWrites: 0, newPlaceIds: 0, existingPlaceIds: 0, writeErrors: 0 });
+  }
 }
 
 app.get('/api/geocode', async (req, res) => {

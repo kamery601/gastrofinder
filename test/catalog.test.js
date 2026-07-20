@@ -115,3 +115,62 @@ test('migration files exist in pairs and down drops everything up creates', () =
   assert.match(up, /BLOCKED_COMPLIANCE/, 'compliance marker for coordinates must be present');
   assert.match(up, /status\s+TEXT NOT NULL DEFAULT 'DRAFT'/, 'partner properties must default to DRAFT');
 });
+
+// --- Fala 1: shadow write must never hurt the user request -------------------
+
+test('slow DB does not add latency to the response path (write happens after res.json)', async () => {
+  // The contract: respondWithNearbyPlaces sends res.json() BEFORE any catalog
+  // write. Here we prove the catalog itself tolerates a slow pool without
+  // throwing, and (in server.js) the call site is fire-and-forget.
+  const slowPool = {
+    query: () => new Promise((resolve) => setTimeout(() => resolve({ rows: [{ inserted: true }] }), 50))
+  };
+  const catalog = createPgCatalog(slowPool);
+  const t0 = Date.now();
+  const p = catalog.upsertObservation({ googlePlaceId: 'x', country: 'PL' });
+  assert.ok(Date.now() - t0 < 20, 'starting the write must not block');
+  await p;
+});
+
+test('DB timeout during shadow write degrades silently (no throw, inserted=false)', async () => {
+  const timeoutErr = new Error('canceling statement due to statement timeout');
+  timeoutErr.code = '57014';
+  const pool = fakePool([timeoutErr]);
+  const catalog = createPgCatalog(pool);
+  const result = await catalog.upsertObservation({ googlePlaceId: 'x', country: 'PL' });
+  assert.deepStrictEqual(result, { inserted: false });
+});
+
+test('duplicates between POPULARITY and DISTANCE collapse to one row (ON CONFLICT)', async () => {
+  // Same Place ID observed twice in one search: first insert, then conflict-update.
+  const pool = fakePool([
+    { rows: [{ inserted: true }] },
+    { rows: [{ inserted: false }] }
+  ]);
+  const catalog = createPgCatalog(pool);
+  const first = await catalog.upsertObservation({ googlePlaceId: 'DUP', country: 'SK' });
+  const second = await catalog.upsertObservation({ googlePlaceId: 'DUP', country: 'SK' });
+  assert.strictEqual(first.inserted, true);
+  assert.strictEqual(second.inserted, false);
+  assert.strictEqual(pool.calls.length, 2);
+});
+
+test('batch upsertObservations: one round-trip, in-batch dedup, inserted/updated counts', async () => {
+  const pool = fakePool([{ rows: [{ inserted: true }, { inserted: true }, { inserted: false }] }]);
+  const catalog = createPgCatalog(pool);
+  const result = await catalog.upsertObservations(['A', 'B', 'B', 'C', null], 'PL');
+  assert.deepStrictEqual(result, { inserted: 2, updated: 1 });
+  assert.strictEqual(pool.calls.length, 1, 'a whole search must be one DB round-trip');
+  assert.deepStrictEqual(pool.calls[0].params[0], ['A', 'B', 'C'], 'nulls dropped, in-batch duplicates removed');
+});
+
+test('batch upsertObservations: empty input is a no-op; DB failure returns zero counts', async () => {
+  const pool = fakePool();
+  const catalog = createPgCatalog(pool);
+  assert.deepStrictEqual(await catalog.upsertObservations([], 'PL'), { inserted: 0, updated: 0 });
+  assert.strictEqual(pool.calls.length, 0);
+
+  const boom = new Error('down'); boom.code = 'ECONNREFUSED';
+  const failing = createPgCatalog(fakePool([boom]));
+  assert.deepStrictEqual(await failing.upsertObservations(['A'], 'PL'), { inserted: 0, updated: 0 });
+});

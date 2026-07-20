@@ -125,9 +125,18 @@ function nearbyCacheKey(center, mode, country) {
   return `nearby:${country}:${mode}:${center.latitude.toFixed(5)}:${center.longitude.toFixed(5)}`;
 }
 
-async function getNearbyPlaces(center, mode, apiKey, country = 'PL') {
+/**
+ * @param {object} [stats] - optional per-request telemetry sink; filled with
+ *   {cacheHit, googleNearbyCalls, raw, unique, capped}. cacheHit stays true
+ *   unless the compute path actually runs (i.e. Google was called).
+ */
+async function getNearbyPlaces(center, mode, apiKey, country = 'PL', stats = null) {
   const config = SEARCH_CONFIG[mode] || SEARCH_CONFIG.food;
   const cacheKey = nearbyCacheKey(center, mode, country);
+  if (stats) {
+    stats.cacheHit = true;
+    stats.googleNearbyCalls = 0;
+  }
 
   return cached(cacheKey, 10 * 60 * 1000, async () => {
     const requests = [];
@@ -135,6 +144,10 @@ async function getNearbyPlaces(center, mode, apiKey, country = 'PL') {
       for (const rankPreference of RANK_PREFERENCES) {
         requests.push({ type, rankPreference });
       }
+    }
+    if (stats) {
+      stats.cacheHit = false;
+      stats.googleNearbyCalls = requests.length;
     }
 
     const settled = await Promise.allSettled(
@@ -191,6 +204,11 @@ async function getNearbyPlaces(center, mode, apiKey, country = 'PL') {
       afterDedup: results.length,
       capped
     });
+    if (stats) {
+      stats.raw = totalRaw;
+      stats.unique = results.length;
+      stats.capped = capped;
+    }
 
     return results;
   });
