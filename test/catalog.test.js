@@ -174,3 +174,61 @@ test('batch upsertObservations: empty input is a no-op; DB failure returns zero 
   const failing = createPgCatalog(fakePool([boom]));
   assert.deepStrictEqual(await failing.upsertObservations(['A'], 'PL'), { inserted: 0, updated: 0 });
 });
+
+// --- Shadow read comparison + telemetry persistence --------------------------
+
+test('knownPlaceInfo: coverage core - counts known ids and oldest observation', async () => {
+  const seen = new Date('2026-07-20T10:00:00Z');
+  const pool = fakePool([{ rows: [{ known: 3, oldest_seen: seen }] }]);
+  const catalog = createPgCatalog(pool);
+  const info = await catalog.knownPlaceInfo(['A', 'B', 'B', 'C', 'D']);
+  assert.deepStrictEqual(info, { known: 3, oldestSeen: seen });
+  assert.deepStrictEqual(pool.calls[0].params[0], ['A', 'B', 'C', 'D'], 'in-batch dedup before query');
+});
+
+test('knownPlaceInfo: empty input and DB failure both return zeros, never throw', async () => {
+  const catalog = createPgCatalog(fakePool());
+  assert.deepStrictEqual(await catalog.knownPlaceInfo([]), { known: 0, oldestSeen: null });
+  const boom = new Error('down'); boom.code = 'ECONNREFUSED';
+  const failing = createPgCatalog(fakePool([boom]));
+  assert.deepStrictEqual(await failing.knownPlaceInfo(['A']), { known: 0, oldestSeen: null });
+});
+
+test('recordSearchTelemetry: parametrized insert, false on failure', async () => {
+  const pool = fakePool([{ rows: [] }]);
+  const catalog = createPgCatalog(pool);
+  const ok = await catalog.recordSearchTelemetry({
+    searchRequestId: '00000000-0000-4000-8000-000000000000',
+    country: 'PL', mode: 'food', googleNearbyCalls: 20, cacheHit: false,
+    raw: 392, unique: 179, capped: false, durationMs: 500, costBucket: 'MEDIUM',
+    writeInserted: 10, writeUpdated: 100, writeErrors: 0, shadowWriteMs: 40,
+    liveCount: 143, catalogKnownCount: 130, coverageRatio: 0.9091,
+    catalogOldestSeen: new Date(), shadowReadMs: 12
+  });
+  assert.strictEqual(ok, true);
+  assert.match(pool.calls[0].sql, /INSERT INTO search_telemetry/);
+  assert.strictEqual(pool.calls[0].params.length, 19);
+
+  const boom = new Error('down'); boom.code = 'ECONNREFUSED';
+  const failing = createPgCatalog(fakePool([boom]));
+  assert.strictEqual(await failing.recordSearchTelemetry({ searchRequestId: 'x', country: 'PL', mode: 'food' }), false);
+});
+
+test('close() drains the pool and tolerates pools without end()', async () => {
+  let ended = false;
+  const pool = { query: async () => ({ rows: [] }), end: async () => { ended = true; } };
+  await createPgCatalog(pool).close();
+  assert.strictEqual(ended, true);
+  await createPgCatalog({ query: async () => ({ rows: [] }) }).close(); // no end() - must not throw
+});
+
+test('migration 003 has a matching down file', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const dir = path.join(__dirname, '..', 'db', 'migrations');
+  const up = fs.readFileSync(path.join(dir, '003_search_telemetry.up.sql'), 'utf8');
+  const down = fs.readFileSync(path.join(dir, '003_search_telemetry.down.sql'), 'utf8');
+  assert.match(up, /CREATE TABLE search_telemetry/);
+  assert.match(down, /DROP TABLE IF EXISTS search_telemetry/);
+  assert.ok(!/query_text|user_lat|user_lng|address/.test(up), 'telemetry schema must hold aggregates only, no PII');
+});
