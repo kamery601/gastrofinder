@@ -122,18 +122,10 @@ async function afterResponsePipeline(places, country, telemetry) {
   const ids = places.map((p) => p.id).filter(Boolean);
   const row = { ...telemetry, writeInserted: 0, writeUpdated: 0, writeErrors: 0 };
 
-  if (isEnabled('CATALOG_WRITE_ENABLED')) {
-    const t0 = Date.now();
-    try {
-      const { inserted, updated } = await catalog.upsertObservations(ids, country, new Date());
-      row.writeInserted = inserted;
-      row.writeUpdated = updated;
-    } catch (e) {
-      row.writeErrors = 1;
-    }
-    row.shadowWriteMs = Date.now() - t0;
-  }
-
+  // ORDER MATTERS: the comparison must run BEFORE the shadow write, otherwise
+  // it would see the ids this very search just inserted and report a
+  // meaningless 100% coverage. The honest Fala 2 metric is "how much of what
+  // live found did the catalog already know BEFORE this search".
   if (isEnabled('CATALOG_SHADOW_READ_ENABLED')) {
     const t0 = Date.now();
     try {
@@ -146,6 +138,18 @@ async function afterResponsePipeline(places, country, telemetry) {
       // comparison is best-effort evidence, never required
     }
     row.shadowReadMs = Date.now() - t0;
+  }
+
+  if (isEnabled('CATALOG_WRITE_ENABLED')) {
+    const t0 = Date.now();
+    try {
+      const { inserted, updated } = await catalog.upsertObservations(ids, country, new Date());
+      row.writeInserted = inserted;
+      row.writeUpdated = updated;
+    } catch (e) {
+      row.writeErrors = 1;
+    }
+    row.shadowWriteMs = Date.now() - t0;
   }
 
   await catalog.recordSearchTelemetry(row);
