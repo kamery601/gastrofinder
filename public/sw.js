@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gastrofinder-v4';
+const CACHE_NAME = 'gastrofinder-v5';
 const ASSETS = [
   '/',
   '/index.html',

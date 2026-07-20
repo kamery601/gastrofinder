@@ -165,6 +165,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
 .skeleton{background:linear-gradient(90deg,var(--g100) 25%,var(--g50) 50%,var(--g100) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:16px;height:190px;}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 
+/* Google Maps Platform attribution - required when Places data is shown
+   without a Google Map (we render OSM/Leaflet). --g600 on --g50 = 5.95:1,
+   above the 4.5:1 contrast the policy requires. */
+.google-attribution{margin-top:1rem;font-size:.75rem;color:var(--g600);text-align:right;}
+.google-attribution .g-logo{font-weight:700;letter-spacing:.2px;}
+
 .site-footer{margin-top:48px;padding:18px 24px;text-align:center;font-size:.78rem;color:#888;border-top:1px solid #e5e7eb}
 .site-footer a{color:#6366f1;text-decoration:none;font-weight:500}
 .site-footer a:hover{opacity:.75;text-decoration:underline}
@@ -278,6 +284,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
 
   <div id="resultsMap" aria-label="Mapa wyników"></div>
   <div id="restaurantsList" class="restaurants-grid"></div>
+  <div class="google-attribution">Dane o miejscach: <span class="g-logo">Google</span></div>
 </div>
 
 <footer class="site-footer">Twórca strony: <a href="https://tel-service.pl/" target="_blank" rel="noopener">TEL-SERVICE</a> <span class="heart">♥</span> przez V</footer>
