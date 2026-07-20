@@ -141,6 +141,17 @@ async function respondWithNearbyPlaces(center, mode, country, res) {
   }
 }
 
+// Ops diagnostics: no secrets, aggregate state only.
+app.get('/api/health', async (req, res) => {
+  const db = await catalog.ping();
+  res.json({
+    catalogAvailable: catalog.isAvailable(),
+    writeEnabled: isEnabled('CATALOG_WRITE_ENABLED'),
+    readEnabled: isEnabled('CATALOG_READ_ENABLED'),
+    db
+  });
+});
+
 app.get('/api/geocode', async (req, res) => {
   if (!ensureApiKey(res)) return;
   if (!req.query.address || !String(req.query.address).trim()) return res.status(400).json({ error: 'Brak adresu' });
