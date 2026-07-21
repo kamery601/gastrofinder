@@ -13,6 +13,11 @@ const { isEnabled } = require('./lib/flags');
 const { applyAvailabilityOverrides } = require('./lib/availability-overrides');
 const app = express();
 
+// Railway terminates HTTPS at one reverse-proxy hop. Without this, Express
+// Rate Limit rejects X-Forwarded-For validation and cannot identify the real
+// client IP, weakening the guard on paid Google API endpoints.
+app.set('trust proxy', 1);
+
 // Wired once at startup: Null catalog unless CATALOG_CORE_ENABLED + DATABASE_URL.
 const catalog = createCatalog();
 logger.info('server', `catalog: ${catalog.isAvailable() ? 'ENABLED' : 'disabled (live search only)'}`);

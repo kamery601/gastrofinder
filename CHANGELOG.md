@@ -9,6 +9,7 @@
 - Google `currentOpeningHours` pozostają nienaruszone;
 - dodano flagę awaryjną `SEASONALITY_OVERRIDES_ENABLED` i diagnostykę w `/api/health`;
 - service worker podniesiony z v5 do v6.
+- poprawiono `trust proxy` dla Railway, aby limiter kosztownych endpointów Google prawidłowo rozpoznawał klientów.
 
 ## Etap 4 – filtry, mapa i PWA
 

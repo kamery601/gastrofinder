@@ -11,6 +11,16 @@ const {
   FIELD_GROUPS
 } = require('../lib/contracts');
 
+test('Railway reverse proxy is trusted before the API rate limiter is created', () => {
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const source = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  const trustProxyAt = source.indexOf("app.set('trust proxy', 1)");
+  const limiterAt = source.indexOf('const apiLimiter = rateLimit');
+  assert.ok(trustProxyAt >= 0, 'Railway proxy trust must be configured');
+  assert.ok(limiterAt > trustProxyAt, 'proxy trust must be configured before rate limiter creation');
+});
+
 // --- flags: OFF state must equal the pre-platform baseline -------------------
 
 test('every platform flag defaults to OFF (current production behavior)', () => {
