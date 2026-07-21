@@ -15,8 +15,22 @@ function checkOpenAtTime(place, hour, minute) {
   return GastroOpeningHours.isOpenAt(place, hour, minute);
 }
 
+function effectiveOpenStatus(place, hour = simHour, minute = simMin) {
+  return GastroAvailability.effectiveOpenStatus(place, checkOpenAtTime, hour, minute);
+}
+
 function getOpeningDetails(place) {
   return GastroOpeningHours.getOpeningStatusDetails(place, simHour, simMin, { isManual: manualTime });
+}
+
+function getAvailabilityPresentation(place) {
+  return GastroAvailability.presentation(
+    place,
+    checkOpenAtTime,
+    getOpeningDetails,
+    simHour,
+    simMin
+  );
 }
 
 function getTimeStr() {
@@ -293,6 +307,7 @@ function typeLabel(types, mode) {
 
 function parsePlaces(places) {
   return places.map((p) => ({
+    id: p.id || null,
     name: p.displayName?.text || '?',
     address: p.formattedAddress || '',
     rating: p.rating || 0,
@@ -303,6 +318,7 @@ function parsePlaces(places) {
     lng: p.location?.longitude ?? null,
     score: p.score ?? null,
     reviewConfidence: p.reviewConfidence || null,
+    availabilityOverride: p.availabilityOverride || null,
     types: p.types || [],
     currentOpeningHours: p.currentOpeningHours || {},
     regularOpeningHours: p.regularOpeningHours || {},
@@ -316,8 +332,8 @@ function sortPlaces(places) {
   const statusOrder = (v) => (v === true ? 0 : v === false ? 2 : 1);
 
   return [...places].sort((a, b) => {
-    const aOpen = checkOpenAtTime(a, simHour, simMin);
-    const bOpen = checkOpenAtTime(b, simHour, simMin);
+    const aOpen = effectiveOpenStatus(a);
+    const bOpen = effectiveOpenStatus(b);
     const statusDiff = statusOrder(aOpen) - statusOrder(bOpen);
     if (statusDiff !== 0) return statusDiff;
 
@@ -341,7 +357,7 @@ function getActiveFilters() {
 function getVisiblePlaces() {
   const filters = getActiveFilters();
   const sorted = sortPlaces(allRestaurants);
-  return GastroFilters.applyFilters(sorted, filters, (place) => checkOpenAtTime(place, simHour, simMin));
+  return GastroFilters.applyFilters(sorted, filters, (place) => effectiveOpenStatus(place));
 }
 
 function updatePriceSortAvailability(visible) {
@@ -366,9 +382,10 @@ function updatePriceSortAvailability(visible) {
 }
 
 function updateStatusSummary(visible) {
-  const openCount = visible.filter((r) => checkOpenAtTime(r, simHour, simMin) === true).length;
-  const closedCount = visible.filter((r) => checkOpenAtTime(r, simHour, simMin) === false).length;
-  const unknownCount = visible.filter((r) => checkOpenAtTime(r, simHour, simMin) === null).length;
+  const openCount = visible.filter((r) => effectiveOpenStatus(r) === true).length;
+  const closedCount = visible.filter((r) => effectiveOpenStatus(r) === false).length;
+  const unknownCount = visible.filter((r) => effectiveOpenStatus(r) === null).length;
+  const seasonalCount = visible.filter((r) => GastroAvailability.activeOverride(r)).length;
   const countLabel = visible.length !== allRestaurants.length
     ? `Po filtrach: ${visible.length} z ${allRestaurants.length} lokali`
     : `${allRestaurants.length} lokali`;
@@ -377,6 +394,7 @@ function updateStatusSummary(visible) {
     'done',
     `${countLabel} — ${openCount} otwartych, ${closedCount} zamkniętych` +
       (unknownCount ? `, ${unknownCount} bez danych` : '') +
+      (seasonalCount ? `, w tym ${seasonalCount} sezonowo` : '') +
       ` (${timeStatusLabel()})`
   );
 }
@@ -392,11 +410,10 @@ function renderList(visible) {
 
   list.innerHTML = visible
     .map((r) => {
-      const openStatus = checkOpenAtTime(r, simHour, simMin);
-      const sc = openStatus === true ? 'open' : openStatus === false ? 'closed' : 'unknown';
-      const lb = openStatus === true ? 'Otwarte' : openStatus === false ? 'Zamknięte' : 'Brak danych';
-      const details = getOpeningDetails(r);
-      const hasExtraDetail = details.closesAt || details.opensAt || details.is24Hours;
+      const availability = getAvailabilityPresentation(r);
+      const sc = availability.status;
+      const lb = availability.badge;
+      const hasExtraDetail = !!availability.detail;
       return `<div class="resto-card is-${sc} mode-${currentMode}">
       <div class="card-body">
         <div class="card-top">
@@ -404,7 +421,7 @@ function renderList(visible) {
           <span class="open-badge ${sc}">${lb}</span>
         </div>
         <div class="card-type">${typeLabel(r.types, currentMode)}</div>
-        ${hasExtraDetail ? `<div class="hours-detail">${esc(details.label)}</div>` : ''}
+        ${hasExtraDetail ? `<div class="hours-detail${sc === 'seasonal' ? ' seasonal-detail' : ''}">${esc(availability.detail)}</div>` : ''}
         <a class="card-address" href="${r.mapsUrl}" target="_blank" rel="noopener">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
           ${esc(r.address)}
@@ -443,6 +460,7 @@ function renderResults() {
   if (mapView && mapCenter) {
     mapView.renderMarkers(visible, mapCenter, {
       getOpenStatus: (place) => checkOpenAtTime(place, simHour, simMin),
+      getAvailability: (place) => getAvailabilityPresentation(place),
       formatDistance,
       esc
     });

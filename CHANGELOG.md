@@ -1,5 +1,15 @@
 # Changelog
 
+## Sezonowa dostępność – własna warstwa weryfikacji
+
+- dodano flagowaną, niezależną od Google warstwę czasowych korekt dostępności;
+- `Bar Za Lasem` jest oznaczony jako nieczynny poza sezonem zimowym do 2026-11-30;
+- karta, podsumowanie, filtr „Tylko otwarte” i mapa korzystają z jednego efektywnego statusu;
+- reguła przechowuje źródło i daty ważności, wygasa automatycznie i nie odnawia się bez nowej weryfikacji;
+- Google `currentOpeningHours` pozostają nienaruszone;
+- dodano flagę awaryjną `SEASONALITY_OVERRIDES_ENABLED` i diagnostykę w `/api/health`;
+- service worker podniesiony z v5 do v6.
+
 ## Etap 4 – filtry, mapa i PWA
 
 ### 4A Filtry UX

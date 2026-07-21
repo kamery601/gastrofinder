@@ -99,6 +99,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
 .legend-dot{width:8px;height:8px;border-radius:50%;}
 .legend-dot.open{background:var(--gr400);}
 .legend-dot.closed{background:var(--r400);}
+.legend-dot.seasonal{background:var(--a400);}
 .legend-dot.unknown{background:var(--g400);}
 
 .location-context{margin-bottom:.75rem;font-size:.82rem;color:var(--g600);}
@@ -127,6 +128,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
 .resto-card.is-open{border-left:3px solid var(--gr400);}
 .resto-card.is-closed{border-left:3px solid var(--r400);opacity:.8;}
 .resto-card.is-unknown{border-left:3px solid var(--g200);}
+.resto-card.is-seasonal{border-left:3px solid var(--a400);}
 .resto-card.mode-clubs.is-open{border-left-color:var(--p400);}
 .resto-card.mode-clubs.is-closed{border-left-color:#c4b5fd;}
 .resto-card.mode-shops24.is-open{border-left-color:var(--b400);}
@@ -139,8 +141,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
 .open-badge.open{background:var(--gr50);color:var(--gr800);}
 .open-badge.closed{background:var(--r50);color:var(--r800);}
 .open-badge.unknown{background:var(--g100);color:var(--g600);}
+.open-badge.seasonal{background:var(--a50);color:var(--a800);}
 .card-type{font-size:.73rem;color:var(--g600);font-weight:500;margin-bottom:.3rem;}
 .hours-detail{font-size:.73rem;color:var(--g600);font-weight:600;margin:0 0 .75rem;}
+.hours-detail.seasonal-detail{color:var(--a600);}
 .card-address{display:flex;align-items:flex-start;gap:.4rem;font-size:.8rem;color:var(--g600);text-decoration:none;margin-bottom:.85rem;line-height:1.4;}
 .card-address:hover{color:var(--a400);}
 .maps-btn{display:inline-flex;align-items:center;gap:.35rem;font-size:.78rem;font-weight:600;color:var(--t600);text-decoration:none;}
@@ -237,6 +241,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
     <div class="legend">
       <div class="legend-item"><div class="legend-dot open"></div>Otwarte</div>
       <div class="legend-item"><div class="legend-dot closed"></div>Zamknięte</div>
+      <div class="legend-item"><div class="legend-dot seasonal"></div>Sezonowo</div>
       <div class="legend-item"><div class="legend-dot unknown"></div>Brak danych</div>
     </div>
   </div>
@@ -292,6 +297,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--g50);color:var(--g800);mi
 <script src="/countries.js"></script>
 <script src="/regions.js"></script>
 <script src="/opening-hours.js"></script>
+<script src="/availability.js"></script>
 <script src="/location-context.js"></script>
 <script src="/ranking-ui.js"></script>
 <script src="/filters-ui.js"></script>

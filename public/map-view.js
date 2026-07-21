@@ -2,6 +2,7 @@
   const PIN_COLORS = {
     open: '#639922',
     closed: '#E24B4A',
+    seasonal: '#BA7517',
     unknown: '#888780'
   };
 
@@ -86,9 +87,14 @@
       const bounds = [];
       places.forEach((place) => {
         if (place.lat == null || place.lng == null) return;
-        const openStatus = helpers.getOpenStatus(place);
-        const status = openStatus === true ? 'open' : openStatus === false ? 'closed' : 'unknown';
-        const statusLabel = openStatus === true ? 'Otwarte' : openStatus === false ? 'Zamknięte' : 'Brak danych';
+        const availability = helpers.getAvailability
+          ? helpers.getAvailability(place)
+          : null;
+        const openStatus = availability ? availability.isOpen : helpers.getOpenStatus(place);
+        const status = availability
+          ? availability.status
+          : openStatus === true ? 'open' : openStatus === false ? 'closed' : 'unknown';
+        const statusLabel = availability ? availability.badge : openStatus === true ? 'Otwarte' : openStatus === false ? 'Zamknięte' : 'Brak danych';
         const marker = global.L.marker([place.lat, place.lng], {
           icon: makePinIcon(status)
         });

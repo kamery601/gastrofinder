@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gastrofinder-v5';
+const CACHE_NAME = 'gastrofinder-v6';
 const ASSETS = [
   '/',
   '/index.html',
@@ -8,6 +8,7 @@ const ASSETS = [
   '/filters-ui.js',
   '/map-view.js',
   '/opening-hours.js',
+  '/availability.js',
   '/location-context.js',
   '/ranking-ui.js',
   '/manifest.json',
@@ -19,7 +20,7 @@ const ASSETS = [
 // The HTML shell and the app's active logic must be network-first so a deploy
 // (like the country selector) reaches users on their very next load, not only
 // after a cache round-trip that could serve a stale interface.
-const NETWORK_FIRST_PATHS = new Set(['/', '/index.html', '/app.js', '/countries.js', '/regions.js', '/opening-hours.js']);
+const NETWORK_FIRST_PATHS = new Set(['/', '/index.html', '/app.js', '/countries.js', '/regions.js', '/opening-hours.js', '/availability.js']);
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

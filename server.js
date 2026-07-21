@@ -10,6 +10,7 @@ const logger = require('./logger');
 const { normalizeCountry } = require('./public/countries');
 const { createCatalog } = require('./lib/catalog');
 const { isEnabled } = require('./lib/flags');
+const { applyAvailabilityOverrides } = require('./lib/availability-overrides');
 const app = express();
 
 // Wired once at startup: Null catalog unless CATALOG_CORE_ENABLED + DATABASE_URL.
@@ -175,7 +176,10 @@ async function respondWithNearbyPlaces(center, mode, country, res) {
     score: rankingScore(place),
     reviewConfidence: reviewConfidence(place)
   }));
-  res.json({ places: filteredPlaces });
+  const responsePlaces = applyAvailabilityOverrides(filteredPlaces, {
+    enabled: isEnabled('SEASONALITY_OVERRIDES_ENABLED')
+  });
+  res.json({ places: responsePlaces });
 
   const telemetry = {
     searchRequestId,
@@ -209,6 +213,7 @@ app.get('/api/health', async (req, res) => {
     writeEnabled: isEnabled('CATALOG_WRITE_ENABLED'),
     readEnabled: isEnabled('CATALOG_READ_ENABLED'),
     shadowReadEnabled: isEnabled('CATALOG_SHADOW_READ_ENABLED'),
+    seasonalityOverridesEnabled: isEnabled('SEASONALITY_OVERRIDES_ENABLED'),
     db
   });
 });
