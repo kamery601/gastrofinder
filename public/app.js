@@ -637,6 +637,14 @@ function initPwa() {
 
 function initApp() {
   currentCountry = GastroCountries.getSavedCountry();
+  // Guest-guide links prefill a starting address without running a paid search.
+  const params = new URLSearchParams(window.location.search);
+  const address = (params.get('address') || '').trim().slice(0, 300);
+  const country = (params.get('country') || '').toUpperCase();
+  if (address) {
+    document.getElementById('cityInput').value = address;
+    if (GastroCountries.isValidCountry(country)) currentCountry = country;
+  }
   syncCountryUi();
   renderRegionChips();
   mapView = GastroMap.createMapView('resultsMap');
