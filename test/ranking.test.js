@@ -76,9 +76,24 @@ test('rankingScore sinks a reliably-low-rated place below every genuine score, w
   assert.ok(rankingScore(badButReliable) < rankingScore(worstGenuine), 'the reliably-bad place must sort after even a genuinely low, small-sample place');
 });
 
-test('rankingScore does not throw and does not sink a place with a missing rating', () => {
+test('rankingScore does not throw on a place with a missing rating', () => {
   assert.doesNotThrow(() => rankingScore({}));
-  assert.strictEqual(rankingScore({}), calculateScore({}));
+});
+
+test('a place with zero reviews never outranks a real place (production bug 2026-10)', () => {
+  // Bayesian alone gave an unreviewed pin (e.g. "parking" typed as a bar) the
+  // global average 43, above a real 4.2-star place with 300 reviews (42.25).
+  const noReviews = { rating: 0, userRatingCount: 0 };
+  const real = { rating: 4.2, userRatingCount: 300 };
+  const mediocreButReal = { rating: 3.6, userRatingCount: 40 };
+  assert.ok(rankingScore(real) > rankingScore(noReviews));
+  assert.ok(rankingScore(mediocreButReal) > rankingScore(noReviews));
+});
+
+test('zero-review places still rank above reliably low-rated ones', () => {
+  const noReviews = { rating: 0, userRatingCount: 0 };
+  const reliablyBad = { rating: 2.4, userRatingCount: 100 };
+  assert.ok(rankingScore(noReviews) > rankingScore(reliablyBad));
 });
 
 test('comparePlaces distance sort is unaffected by the low-rating sink', () => {

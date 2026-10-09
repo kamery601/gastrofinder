@@ -79,13 +79,20 @@ function isUnreliablyLowRated(place) {
 
 /**
  * The score actually used to order the "Najlepsze" sort: calculateScore, except
- * reliably-low-rated places are pushed to a sentinel range below every genuine
- * Bayesian score so they always sort last within their open/closed/unknown group.
+ * two kinds of places are pushed into sentinel ranges below every genuine
+ * Bayesian score, so they sort last within their open/closed/unknown group:
+ *   - no reviews at all: Bayesian would give them the global average (43),
+ *     ranking an unverified pin (e.g. "parking" tagged as a bar) above a real
+ *     4.2-star place with 300 reviews. Not removed - a new place can be real -
+ *     just never recommended ahead of places with evidence;
+ *   - reliably low-rated places (below those without data).
  * @returns {number}
  */
 function rankingScore(place) {
   const base = calculateScore(place);
-  return isUnreliablyLowRated(place) ? base - 1000 : base;
+  if (isUnreliablyLowRated(place)) return base - 1000;
+  if (reviewConfidence(place) === 'no_data') return base - 500;
+  return base;
 }
 
 function compareByDistance(a, b) {

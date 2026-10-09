@@ -36,6 +36,15 @@ const GROCERY_NAME_PATTERNS = [
   'coop jednota', 'billa', 'cba', 'potraviny', 'élelmiszer', 'penny market'
 ];
 
+// Businesses whose owners self-tagged them as restaurants/bars in Google,
+// verified in the Podhale audit (Oct 2026): a carpentry workshop as
+// "american_restaurant", an investment group as "fast_food_restaurant", a
+// trading company and a bare "parking" pin as "bar". Whole-word matches only:
+// "Kawiarnia przy parkingu" stays (inflected "parkingu" is not "parking").
+const NON_FOOD_BUSINESS_NAME_PATTERNS = [
+  'usługi stolarskie', 'stolarstwo', 'grupa inwestycyjna', 'firma handlowo', 'parking'
+];
+
 const FOOD_DESCRIPTOR_WORDS = ['restauracja', 'restauracji', 'bistro', 'trattoria', 'pizzeria', 'karczma', 'kawiarnia', 'kawiarni', 'cafe', 'coffee', 'grill', 'bar', 'kuchnia', 'cukiernia', 'piekarnia', 'sushi', 'kebab', 'burger', 'gastropub'];
 const GENERIC_HOTEL_NAME_WORDS = ['hotel', 'hostel', 'motel', 'resort', 'pensjonat', 'apartamenty'];
 const GENERIC_MALL_NAME_WORDS = ['galeria', 'centrum handlowe', 'park handlowy', 'outlet', 'dom handlowy', 'pasaż handlowy'];
@@ -92,6 +101,9 @@ function classifyFoodPlace(place) {
 
   const nameNoise = matchNoiseName(lowerName);
   if (nameNoise) return { accepted: false, reason: nameNoise, confidence: 'high' };
+  if (matchesAnyWord(lowerName, NON_FOOD_BUSINESS_NAME_PATTERNS)) {
+    return { accepted: false, reason: 'non_food_business', confidence: 'high' };
+  }
 
   if (hasAnyType(types, FUEL_TYPES)) return { accepted: false, reason: 'fuel_station', confidence: 'high' };
   if (hasAnyType(types, GROCERY_TYPES)) return { accepted: false, reason: 'grocery_store', confidence: 'high' };

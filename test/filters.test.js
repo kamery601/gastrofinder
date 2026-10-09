@@ -204,3 +204,30 @@ test('SK/HU rules do not regress Polish filtering: Żabka still rejected, restau
   assert.strictEqual(classifyFoodPlace(place({ types: ['restaurant'], displayName: { text: 'Żabka Express' } })).accepted, false);
   assert.strictEqual(classifyFoodPlace(place({ types: ['restaurant'], displayName: { text: 'Restauracja Gallo Nero' } })).accepted, true);
 });
+
+// --- Podhale audit (Oct 2026): self-tagged non-food businesses ---------------
+
+test('food: carpentry workshop self-tagged as american_restaurant is rejected', () => {
+  const p = place({ types: ['american_restaurant', 'manufacturer', 'restaurant'], displayName: { text: 'Czernik Andrzej Usługi Stolarskie i Rzeźbiarskie' } });
+  const result = classifyFoodPlace(p);
+  assert.strictEqual(result.accepted, false);
+  assert.strictEqual(result.reason, 'non_food_business');
+});
+
+test('food: investment group and trading company tagged as restaurant/bar are rejected', () => {
+  assert.strictEqual(classifyFoodPlace(place({ types: ['fast_food_restaurant', 'restaurant'], displayName: { text: 'Bachleda Grupa Inwestycyjna' } })).accepted, false);
+  assert.strictEqual(classifyFoodPlace(place({ types: ['bar'], displayName: { text: 'Tatar Grażyna. Firma handlowo - usługowa' } })).accepted, false);
+});
+
+test('food: a bare "parking" pin tagged as bar is rejected', () => {
+  assert.strictEqual(classifyFoodPlace(place({ types: ['bar'], displayName: { text: 'parking' } })).accepted, false);
+});
+
+test('food: "Kawiarnia przy parkingu" stays - inflected word is not the pattern', () => {
+  assert.strictEqual(classifyFoodPlace(place({ types: ['cafe', 'coffee_shop'], displayName: { text: 'KAWIARNIA PRZY PARKINGU' } })).accepted, true);
+});
+
+test('food: a real restaurant with a company-style name is not caught by the business patterns', () => {
+  assert.strictEqual(classifyFoodPlace(place({ types: ['bakery'], displayName: { text: 'Pawlikowski Piotr i Paweł. Piekarnia sp.j.' } })).accepted, true);
+  assert.strictEqual(classifyFoodPlace(place({ types: ['restaurant'], displayName: { text: 'Karczma Parkowa' } })).accepted, true);
+});
