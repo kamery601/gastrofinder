@@ -65,7 +65,17 @@ Mechanizm (flaga `AVAILABILITY_CHECKS_ENABLED`):
 Bliskość wyciągu NIE decyduje o werdykcie (typ `ski_resort` w Google obejmuje
 też szkółki, wypożyczalnie, a nawet bar sushi) — w raporcie jest tylko pomocą.
 
-### Odświeżenie (raz w miesiącu i na początku sezonu: XII, IV)
+### Odświeżanie automatyczne (od 2026-10-09)
+
+GitHub Actions `.github/workflows/monthly-availability-audit.yml` uruchamia
+audyt 1. dnia każdego miesiąca o 04:00 UTC (to obejmuje 1.12 i 1.04), commituje
+nowe werdykty, a Railway sam wdraża. Ręcznie: zakładka Actions → „Monthly
+availability audit” → Run workflow. Klucz Google: sekret repozytorium
+`GOOGLE_API_KEY`. Jeśli Google zablokuje klucz albo listy będą podejrzanie
+krótkie, uruchomienie kończy się błędem, nic nie jest zapisywane, stare
+werdykty zostają, a GitHub wysyła maila o niepowodzeniu.
+
+### Odświeżenie ręczne (gdy potrzeba poza harmonogramem)
 
 ```bash
 GOOGLE_API_KEY=... node scripts/audit-availability.js \
