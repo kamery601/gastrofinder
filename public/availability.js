@@ -1,5 +1,13 @@
 (function (global) {
-  const CLOSED_STATUSES = new Set(['SEASONAL_CLOSED', 'CLOSED_CONFIRMED']);
+  // ACTIVITY_UNCONFIRMED: established place with no sign of life for 6+ months
+  // (from the activity audit). Never presented as open - we only recommend
+  // what we have evidence for.
+  const CLOSED_STATUSES = new Set(['SEASONAL_CLOSED', 'CLOSED_CONFIRMED', 'ACTIVITY_UNCONFIRMED']);
+  const BADGES = {
+    SEASONAL_CLOSED: 'Sezonowo zamknięte',
+    CLOSED_CONFIRMED: 'Zamknięte',
+    ACTIVITY_UNCONFIRMED: 'Niepotwierdzone'
+  };
 
   function activeOverride(place) {
     const override = place && place.availabilityOverride;
@@ -17,7 +25,7 @@
       return {
         isOpen: false,
         status: 'seasonal',
-        badge: 'Sezonowo zamknięte',
+        badge: BADGES[override.status] || 'Sezonowo zamknięte',
         detail: override.label || 'Nieczynne poza sezonem',
         source: override.source || null,
         verifiedAt: override.verifiedAt || null,

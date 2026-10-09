@@ -11,6 +11,10 @@ const { normalizeCountry } = require('./public/countries');
 const { createCatalog } = require('./lib/catalog');
 const { isEnabled } = require('./lib/flags');
 const { applyAvailabilityOverrides } = require('./lib/availability-overrides');
+const { applyAvailabilityChecks, loadChecks } = require('./lib/availability-checks');
+
+// Loaded once at startup; refreshed by re-running the audit and redeploying.
+const availabilityChecks = loadChecks();
 const app = express();
 
 // Railway terminates HTTPS at one reverse-proxy hop. Without this, Express
@@ -181,10 +185,17 @@ async function respondWithNearbyPlaces(center, mode, country, res) {
     score: rankingScore(place),
     reviewConfidence: reviewConfidence(place)
   }));
-  const responsePlaces = applyAvailabilityOverrides(filteredPlaces, {
+  const withOverrides = applyAvailabilityOverrides(filteredPlaces, {
     enabled: isEnabled('SEASONALITY_OVERRIDES_ENABLED')
   });
-  res.json({ places: responsePlaces });
+  const checked = applyAvailabilityChecks(withOverrides, {
+    enabled: isEnabled('AVAILABILITY_CHECKS_ENABLED'),
+    checksFile: availabilityChecks
+  });
+  if (checked.hidden || checked.annotated) {
+    logger.info('availability', `${mode}: hidden ${checked.hidden}, annotated ${checked.annotated}`, { country });
+  }
+  res.json({ places: checked.places });
 
   const telemetry = {
     searchRequestId,
@@ -219,6 +230,12 @@ app.get('/api/health', async (req, res) => {
     readEnabled: isEnabled('CATALOG_READ_ENABLED'),
     shadowReadEnabled: isEnabled('CATALOG_SHADOW_READ_ENABLED'),
     seasonalityOverridesEnabled: isEnabled('SEASONALITY_OVERRIDES_ENABLED'),
+    availabilityChecks: {
+      enabled: isEnabled('AVAILABILITY_CHECKS_ENABLED'),
+      rulesVersion: availabilityChecks.rulesVersion,
+      generatedAt: availabilityChecks.generatedAt,
+      entries: Object.keys(availabilityChecks.checks || {}).length
+    },
     db
   });
 });

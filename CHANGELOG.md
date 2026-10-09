@@ -1,5 +1,14 @@
 # Changelog
 
+## Audyt aktywności lokali – Podhale (2026-10-09)
+
+- audyt 277 lokali w Zakopanem, Kościelisku, Poroninie, Bukowinie i Białce Tatrzańskiej;
+- nowy mechanizm `AVAILABILITY_CHECKS_ENABLED`: martwe wpisy (brak opinii >12 mies.) ukryte, lokale tylko zimowe oznaczone „Sezonowo zamknięte”, uśpione „Niepotwierdzone”;
+- naprawiono ranking: lokal bez opinii nie wyprzedza już sprawdzonych lokali w „Najlepsze”;
+- filtr nie-gastronomii: odrzucane firmy podpisane w Google jako restauracja/bar (stolarz, grupa inwestycyjna, firma handlowa, „parking”);
+- skrypt `scripts/audit-availability.js` do cyklicznego odświeżania;
+- service worker v6 → v7.
+
 ## Sezonowa dostępność – własna warstwa weryfikacji
 
 - dodano flagowaną, niezależną od Google warstwę czasowych korekt dostępności;

@@ -117,9 +117,20 @@ test('client layer delegates byte-for-byte opening logic when no override exists
   assert.strictEqual(view.detail, 'Otwarte do 21:00');
 });
 
-test('service worker v6 precaches and network-first refreshes the availability helper', () => {
+test('client layer: dormant place (ACTIVITY_UNCONFIRMED) is never shown as open', () => {
+  const place = {
+    availabilityOverride: { status: 'ACTIVITY_UNCONFIRMED', label: 'Brak aktywności od 8 mies. – może być nieczynny' },
+    currentOpeningHours: { openNow: true }
+  };
+  assert.strictEqual(availability.effectiveOpenStatus(place, () => true, 12, 0), false);
+  const view = availability.presentation(place, () => true, () => ({ label: 'Otwarte do 21:00' }), 12, 0);
+  assert.strictEqual(view.badge, 'Niepotwierdzone');
+  assert.strictEqual(view.detail, 'Brak aktywności od 8 mies. – może być nieczynny');
+});
+
+test('service worker v7 precaches and network-first refreshes the availability helper', () => {
   const sw = fs.readFileSync(path.join(__dirname, '../public/sw.js'), 'utf8');
-  assert.match(sw, /gastrofinder-v6/);
+  assert.match(sw, /gastrofinder-v7/);
   assert.match(sw, /'\/availability\.js'/);
   assert.match(sw, /NETWORK_FIRST_PATHS[^;]+availability\.js/);
 });

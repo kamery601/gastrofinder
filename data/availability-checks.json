@@ -1,0 +1,90 @@
+{
+  "rulesVersion": "2026-10-09",
+  "generatedAt": "2026-10-09T18:55:08.615Z",
+  "checks": {
+    "ChIJhbJDqt7zFUcR8wKrMNb4VJM": {
+      "verdict": "WINTER_SEASONAL",
+      "reason": "Lokal sezonowy – działa głównie zimą",
+      "checkedAt": "2026-10-09",
+      "validUntil": "2026-11-30"
+    },
+    "ChIJx9MByTXzFUcRDTok2bnA8ew": {
+      "verdict": "INACTIVE",
+      "reason": "Brak aktywności od 24 mies.",
+      "checkedAt": "2026-10-09",
+      "validUntil": "2027-02-06"
+    },
+    "ChIJf-_xDarzFUcRk66t3hZKer8": {
+      "verdict": "INACTIVE",
+      "reason": "Brak aktywności od 44 mies.",
+      "checkedAt": "2026-10-09",
+      "validUntil": "2027-02-06"
+    },
+    "ChIJbVDVfwfzFUcRWLLKJrUIAyE": {
+      "verdict": "INACTIVE",
+      "reason": "Brak aktywności od 16 mies.",
+      "checkedAt": "2026-10-09",
+      "validUntil": "2027-02-06"
+    },
+    "ChIJLVisWpryFUcR5ng8MuQPfII": {
+      "verdict": "INACTIVE",
+      "reason": "Brak aktywności od 34 mies.",
+      "checkedAt": "2026-10-09",
+      "validUntil": "2027-02-06"
+    },
+    "ChIJoyVWLJHyFUcR46O8FOGedQw": {
+      "verdict": "INACTIVE",
+      "reason": "Brak aktywności od 72 mies.",
+      "checkedAt": "2026-10-09",
+      "validUntil": "2027-02-06"
+    },
+    "ChIJ3ehQXhntFUcRI5XxirtMSe0": {
+      "verdict": "INACTIVE",
+      "reason": "Brak aktywności od 12 mies.",
+      "checkedAt": "2026-10-09",
+      "validUntil": "2027-02-06"
+    },
+    "ChIJDVYjNFjtFUcRSLhrIvEiHxc": {
+      "verdict": "INACTIVE",
+      "reason": "Brak aktywności od 65 mies.",
+      "checkedAt": "2026-10-09",
+      "validUntil": "2027-02-06"
+    },
+    "ChIJuR4acDvyFUcR00OnEfomDIQ": {
+      "verdict": "INACTIVE",
+      "reason": "Brak aktywności od 82 mies.",
+      "checkedAt": "2026-10-09",
+      "validUntil": "2027-02-06"
+    },
+    "ChIJcyTvsCbyFUcRum1f58nOugY": {
+      "verdict": "INACTIVE",
+      "reason": "Brak aktywności od 20 mies.",
+      "checkedAt": "2026-10-09",
+      "validUntil": "2027-02-06"
+    },
+    "ChIJc2KI1xzxFUcRcqEsuOUn_xY": {
+      "verdict": "WINTER_SEASONAL",
+      "reason": "Lokal sezonowy – działa głównie zimą",
+      "checkedAt": "2026-10-09",
+      "validUntil": "2026-11-30"
+    },
+    "ChIJuXEaNH_3FUcRkWbGaIFuzm4": {
+      "verdict": "WINTER_SEASONAL",
+      "reason": "Lokal sezonowy – działa głównie zimą",
+      "checkedAt": "2026-10-09",
+      "validUntil": "2026-11-30"
+    },
+    "ChIJJTLRm9nxFUcRafs9nNn_-KU": {
+      "verdict": "DORMANT",
+      "reason": "Brak aktywności od 8 mies. – może być nieczynny",
+      "checkedAt": "2026-10-09",
+      "validUntil": "2026-11-23"
+    },
+    "ChIJL8PwSUDxFUcRbHoTivmAulc": {
+      "verdict": "WINTER_SEASONAL",
+      "reason": "Lokal sezonowy – działa głównie zimą",
+      "checkedAt": "2026-10-09",
+      "validUntil": "2026-11-30"
+    }
+  }
+}

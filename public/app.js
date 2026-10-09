@@ -394,7 +394,7 @@ function updateStatusSummary(visible) {
     'done',
     `${countLabel} — ${openCount} otwartych, ${closedCount} zamkniętych` +
       (unknownCount ? `, ${unknownCount} bez danych` : '') +
-      (seasonalCount ? `, w tym ${seasonalCount} sezonowo` : '') +
+      (seasonalCount ? `, w tym ${seasonalCount} sezonowych lub niepotwierdzonych` : '') +
       ` (${timeStatusLabel()})`
   );
 }

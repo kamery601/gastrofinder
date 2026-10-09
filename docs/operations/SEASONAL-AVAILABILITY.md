@@ -37,3 +37,45 @@ alone.
 - Google Place ID: `ChIJIfGBY3H3FUcRsYNjhX6eC08`
 - Closed outside the winter season through 2026-11-30
 - Source class: local verification
+
+## Audyt aktywności lokali (od 2026-10-09)
+
+Decyzja właściciela (09.10.2026): polecamy tylko lokale, co do których mamy
+dowód, że działają. Google potrafi latami pokazywać godziny i „otwarte” dla
+martwych wpisów oraz budek działających tylko zimą przy wyciągach.
+
+Mechanizm (flaga `AVAILABILITY_CHECKS_ENABLED`):
+
+1. `scripts/audit-availability.js` bierze listy dokładnie takie, jakie widzi
+   klient (produkcyjne `/api/nearby`), pobiera daty najnowszych opinii z Google
+   (same daty, bez treści) i klasyfikuje każdy lokal
+   (`lib/availability-checks.js`).
+2. Wynik trafia do `data/availability-checks.json` — tylko identyfikator
+   miejsca, werdykt, powód i daty ważności (dane własne, nie treść Google).
+3. Serwer stosuje plik przy każdym wyszukiwaniu, bez dodatkowych zapytań:
+   - `INACTIVE` — brak opinii od ponad 12 miesięcy → lokal ukryty;
+   - `WINTER_SEASONAL` — najnowsze opinie (prawie) wyłącznie z grudnia–marca
+     i nic od wiosny → poza zimą „Sezonowo zamknięte”;
+   - `DORMANT` — lokal z 30+ opiniami bez żadnej od 6 miesięcy →
+     „Niepotwierdzone”, nie jest pokazywany jako otwarty.
+4. Każdy werdykt wygasa (INACTIVE 120 dni, DORMANT 45 dni, WINTER do 30.11) —
+   bez ponownego audytu wraca czysty stan z Google.
+5. Ręczna weryfikacja (`lib/availability-overrides.js`) zawsze wygrywa.
+
+Bliskość wyciągu NIE decyduje o werdykcie (typ `ski_resort` w Google obejmuje
+też szkółki, wypożyczalnie, a nawet bar sushi) — w raporcie jest tylko pomocą.
+
+### Odświeżenie (raz w miesiącu i na początku sezonu: XII, IV)
+
+```bash
+GOOGLE_API_KEY=... node scripts/audit-availability.js \
+  --cache ~/gastrofinder-audit-cache.json --out ~/gastrofinder-audit.json \
+  --write-checks data/availability-checks.json
+npm test && git add data/availability-checks.json && git commit && git push
+```
+
+Koszt: ok. 280 zapytań Place Details (raz na audyt, mieści się w darmowym
+limicie miesięcznym Google) + zwykłe wyszukiwania. Plik `--cache` sprawia, że
+powtórne uruchomienie nie pyta Google o te same lokale.
+
+Rollback: `AVAILABILITY_CHECKS_ENABLED=false` w Railway.
