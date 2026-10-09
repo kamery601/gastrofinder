@@ -1,8 +1,32 @@
 {
   "rulesVersion": "2026-10-09",
-  "generatedAt": "2026-10-09T18:55:08.615Z",
+  "generatedAt": "2026-10-09T20:43:08.191Z",
   "checks": {
     "ChIJhbJDqt7zFUcR8wKrMNb4VJM": {
+      "verdict": "WINTER_SEASONAL",
+      "reason": "Lokal sezonowy – działa głównie zimą",
+      "checkedAt": "2026-10-09",
+      "validUntil": "2026-11-30"
+    },
+    "ChIJc2KI1xzxFUcRcqEsuOUn_xY": {
+      "verdict": "WINTER_SEASONAL",
+      "reason": "Lokal sezonowy – działa głównie zimą",
+      "checkedAt": "2026-10-09",
+      "validUntil": "2026-11-30"
+    },
+    "ChIJuXEaNH_3FUcRkWbGaIFuzm4": {
+      "verdict": "WINTER_SEASONAL",
+      "reason": "Lokal sezonowy – działa głównie zimą",
+      "checkedAt": "2026-10-09",
+      "validUntil": "2026-11-30"
+    },
+    "ChIJJTLRm9nxFUcRafs9nNn_-KU": {
+      "verdict": "DORMANT",
+      "reason": "Brak aktywności od 8 mies. – może być nieczynny",
+      "checkedAt": "2026-10-09",
+      "validUntil": "2026-11-23"
+    },
+    "ChIJL8PwSUDxFUcRbHoTivmAulc": {
       "verdict": "WINTER_SEASONAL",
       "reason": "Lokal sezonowy – działa głównie zimą",
       "checkedAt": "2026-10-09",
@@ -61,30 +85,6 @@
       "reason": "Brak aktywności od 20 mies.",
       "checkedAt": "2026-10-09",
       "validUntil": "2027-02-06"
-    },
-    "ChIJc2KI1xzxFUcRcqEsuOUn_xY": {
-      "verdict": "WINTER_SEASONAL",
-      "reason": "Lokal sezonowy – działa głównie zimą",
-      "checkedAt": "2026-10-09",
-      "validUntil": "2026-11-30"
-    },
-    "ChIJuXEaNH_3FUcRkWbGaIFuzm4": {
-      "verdict": "WINTER_SEASONAL",
-      "reason": "Lokal sezonowy – działa głównie zimą",
-      "checkedAt": "2026-10-09",
-      "validUntil": "2026-11-30"
-    },
-    "ChIJJTLRm9nxFUcRafs9nNn_-KU": {
-      "verdict": "DORMANT",
-      "reason": "Brak aktywności od 8 mies. – może być nieczynny",
-      "checkedAt": "2026-10-09",
-      "validUntil": "2026-11-23"
-    },
-    "ChIJL8PwSUDxFUcRbHoTivmAulc": {
-      "verdict": "WINTER_SEASONAL",
-      "reason": "Lokal sezonowy – działa głównie zimą",
-      "checkedAt": "2026-10-09",
-      "validUntil": "2026-11-30"
     }
   }
 }
