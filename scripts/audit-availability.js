@@ -97,12 +97,19 @@ async function placeDetails(placeId, cache) {
   if (cache[placeId]) return cache[placeId];
   const url = 'https://maps.googleapis.com/maps/api/place/details/json' +
     `?place_id=${encodeURIComponent(placeId)}` +
-    '&fields=business_status,user_ratings_total,reviews' +
+    '&fields=name,business_status,user_ratings_total,reviews' +
     `&reviews_sort=newest&language=pl&key=${API_KEY}`;
   const d = await getJson(url);
+  // A blocked key (billing off, quota) must abort the whole run - otherwise
+  // every place would look review-less and the verdicts would be silently
+  // wiped. NOT_FOUND is per-place (listing removed) and is fine.
+  if (d.status !== 'OK' && d.status !== 'NOT_FOUND') {
+    throw new Error(`Google Place Details ${d.status}: ${d.error_message || 'no message'}`);
+  }
   const r = d.result || {};
   const entry = {
     status: d.status,
+    name: r.name || null,
     businessStatus: r.business_status || null,
     totalReviews: r.user_ratings_total || 0,
     // dates + ratings only; review texts are deliberately not kept
@@ -153,14 +160,32 @@ async function main() {
     }
   }
 
+  // Hidden places never appear in the production lists again, so without this
+  // a monthly run would silently drop their verdicts and dead listings would
+  // come back. Every previously flagged place is re-checked by its ID.
+  if (CHECKS_OUT && fs.existsSync(CHECKS_OUT)) {
+    const previous = JSON.parse(fs.readFileSync(CHECKS_OUT, 'utf8')).checks || {};
+    for (const id of Object.keys(previous)) {
+      if (!byId.has(id)) {
+        byId.set(id, { id, name: null, lat: null, lng: null, localities: new Set(['(wcześniej oznaczony)']), modes: new Set() });
+      }
+    }
+  }
+
+  // Sanity guard: broken lists must not overwrite good verdicts.
+  if (byId.size < 100) {
+    throw new Error(`only ${byId.size} places collected - refusing to write checks`);
+  }
+
   const liftList = [...lifts.values()];
   const rows = [];
   let i = 0;
   for (const place of byId.values()) {
     i += 1;
     const details = await placeDetails(place.id, cache);
+    if (!place.name) place.name = details.name;
     let nearest = null;
-    for (const l of liftList) {
+    for (const l of (place.lat == null ? [] : liftList)) {
       const m = haversineMeters({ lat: place.lat, lng: place.lng }, l);
       if (nearest === null || m < nearest.m) nearest = { m, name: l.name };
     }
